@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bull Market Relapse Counter</title>
+
+  <!-- OG / Social -->
+  <meta name="description" content="Track every time you've called the bottom. Because you've definitely called it before.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Bull Market Relapse Counter">
+  <meta property="og:description" content="Track every time you've called the bottom. Because you've definitely called it before.">
+  <meta property="og:image" content="https://bullmarketrelapse.lol/og-image.png">
+  <meta property="og:url" content="https://bullmarketrelapse.lol">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Bull Market Relapse Counter">
+  <meta name="twitter:description" content="Track every time you've called the bottom. Because you've definitely called it before.">
+  <meta name="twitter:image" content="https://bullmarketrelapse.lol/og-image.png">
+
+  <link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@700,800,900&f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <style>
+    :root {
+      /* Palette in OKLCH — perceptually uniform */
+      --bg:        oklch(10% .008 22);
+      --surface:   oklch(12.5% .008 22);
+      --surface-2: oklch(14.5% .008 22);
+      --surface-3: oklch(17% .008 22);
+      --surface-4: oklch(20% .008 22);
+      --border:    oklch(22% .008 22);
+      --text:      oklch(90% .012 22);
+      --muted:     oklch(52% .010 22);
+      --faint:     oklch(32% .008 22);
+
+      /* Single accent: red — one color, maximum */
+      --red:       oklch(54% .22 25);
+      --red-dim:   oklch(54% .22 25 / .13);
+      --red-mid:   oklch(54% .22 25 / .22);
+      --red-border:oklch(54% .22 25 / .32);
+
+      /* Supporting status colors */
+      --green:     oklch(52% .14 140);
+      --green-dim: oklch(52% .14 140 / .12);
+      --amber:     oklch(58% .12 65);
+      --amber-dim: oklch(58% .12 65 / .12);
+
+      --font-d: 'Cabinet Grotesk', sans-serif;
+      --font-b: 'Satoshi', sans-serif;
+
+      /* Fixed rem scale for app UI — no fluid clamp on UI chrome */
+      --t-xs:   .75rem;   /* 12px */
+      --t-sm:   .875rem;  /* 14px */
+      --t-base: 1rem;     /* 16px */
+      --t-lg:   1.25rem;  /* 20px */
+      --t-xl:   1.75rem;  /* 28px */
+      --t-2xl:  2.5rem;   /* 40px */
+      /* Hero counter is display/marketing — fluid is appropriate */
+      --t-hero: clamp(6rem, 18vw, 11rem);
+
+      /* 4pt spacing scale with semantic names */
+      --space-2xs: .25rem;  /* 4px  */
+      --space-xs:  .5rem;   /* 8px  */
+      --space-sm:  .75rem;  /* 12px */
+      --space-md:  1rem;    /* 16px */
+      --space-lg:  1.5rem;  /* 24px */
+      --space-xl:  2rem;    /* 32px */
+      --space-2xl: 3rem;    /* 48px */
+      --space-3xl: 4rem;    /* 64px */
+      /* Keep old aliases so JS canvas and existing refs compile cleanly */
+      --s1:.25rem; --s2:.5rem; --s3:.75rem; --s4:1rem;
+      --s5:1.25rem; --s6:1.5rem; --s8:2rem; --s10:2.5rem;
+      --s12:3rem; --s16:4rem;
+
+      --r-sm:.375rem; --r-md:.5rem; --r-lg:.75rem;
+      --r-xl:1rem; --r-full:9999px;
+      --tr:180ms cubic-bezier(.16,1,.3,1);
+    }
+
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+    body{
+      min-height:100dvh;font-family:var(--font-b);font-size:1rem;
+      color:var(--text);background:var(--bg);line-height:1.65;
+      /* Subtle grain — pure CSS noise using SVG filter */
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+    }
+    img,svg{display:block;max-width:100%}
+    button{cursor:pointer;background:none;border:none;font:inherit;color:inherit}
+    input,select,textarea{font:inherit;color:inherit}
+    h1,h2,h3{text-wrap:balance;line-height:1.1}
+    p{text-wrap:pretty}
+    a,button,input,select,textarea{transition:color var(--tr),background var(--tr),border-color var(--tr),box-shadow var(--tr),opacity var(--tr)}
+    :focus-visible{outline:2px solid var(--red);outline-offset:2px}
+    :focus:not(:focus-visible){outline:none}
+
+    .wrap{max-width:800px;margin-inline:auto;padding-inline:var(--s6)}
+
+    /* ── Header ─────────────────────────────────────────────── */
+    header{
+      border-bottom:1px solid var(--border);
+      border-top:3px solid var(--red);
+      padding:var(--s4) 0
+    }
+    .hdr{display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:var(--s3)}
+    .logo-text{font-family:var(--font-d);font-size:1rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;line-height:1}
+    .logo-text em{color:var(--red);font-style:normal}
+
+    /* ── Buttons ─────────────────────────────────────────────── */
+    .btn{display:inline-flex;align-items:center;gap:var(--s2);padding:var(--s3) var(--s6);border-radius:var(--r-md);font-size:.875rem;font-weight:700;line-height:1}
+    .btn svg{flex-shrink:0}
+    .btn-primary{background:var(--red);color:oklch(97% .005 22)}
+    .btn-primary:hover{background:oklch(48% .22 25);transform:translateY(-1px)}
+    .btn-primary:active{transform:translateY(0)}
+    .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border)}
+    .btn-ghost:hover{color:var(--text);border-color:var(--muted)}
+    .btn-ghost:active{background:var(--surface-2)}
+    .btn-primary:focus-visible,.btn-ghost:focus-visible{outline-offset:3px}
+
+    /* ── Hero ────────────────────────────────────────────────── */
+    .hero{padding:var(--space-3xl) 0 var(--space-2xl);position:relative}
+
+    .tier-badge{
+      display:inline-flex;align-items:center;gap:var(--space-xs);
+      background:transparent;border:none;
+      color:var(--red);font-size:.6875rem;font-weight:700;
+      letter-spacing:.14em;text-transform:uppercase;
+      padding:0;
+      margin-bottom:var(--space-sm)
+    }
+    /* Small red rule before tier label */
+    .tier-badge::before{
+      content:'';display:inline-block;
+      width:1.5rem;height:2px;background:var(--red);
+      margin-right:.5em;vertical-align:.1em;flex-shrink:0
+    }
+
+    .big-counter{
+      font-family:var(--font-d);
+      font-size:var(--t-hero);
+      font-weight:900;color:var(--red);
+      line-height:.88;
+      letter-spacing:-.05em;
+      transition:color .3s;
+      margin-bottom:0
+    }
+    .big-counter.flash{color:oklch(72% .22 25)}
+
+    /* Caption sits tight under the number */
+    .counter-sub{
+      font-size:.8125rem;
+      color:var(--muted);font-weight:400;
+      margin-top:var(--space-sm);
+      margin-bottom:var(--space-xl);
+      letter-spacing:.01em;
+      text-transform:uppercase
+    }
+    .counter-sub strong{color:var(--text);font-weight:600}
+
+    /* ── Roast card — editorial pull-quote ──────────────────── */
+    .roast{
+      border-top:1px solid var(--border);
+      border-bottom:1px solid var(--border);
+      padding:var(--space-xl) 0;
+      margin-bottom:var(--space-2xl);
+      display:none;opacity:0;transition:opacity .3s;
+      position:relative
+    }
+    .roast.show{display:block;opacity:1}
+    /* Large decorative opening quote */
+    .roast::before{
+      content:'\201C';
+      font-family:var(--font-d);
+      font-size:5rem;
+      font-weight:900;
+      line-height:.7;
+      color:var(--red);
+      display:block;
+      margin-bottom:var(--space-sm);
+      letter-spacing:-.05em
+    }
+    .roast-q{
+      font-family:var(--font-d);
+      font-size:clamp(1.125rem, 2.5vw, 1.625rem);
+      font-weight:700;
+      line-height:1.3;
+      max-width:54ch;
+      color:var(--text);
+      letter-spacing:-.01em
+    }
+    .roast-by{
+      margin-top:var(--space-md);
+      font-size:.6875rem;
+      color:var(--red);
+      text-transform:uppercase;
+      letter-spacing:.14em;
+      font-weight:700
+    }
+
+    /* ── Stats row — single inline line, not a card grid ──────── */
+    .stats{display:none} /* removed — data lives in .counter-stats inline */
+    .counter-stats{
+      font-size:.75rem;color:var(--muted);
+      margin-bottom:var(--space-xl);
+      margin-top:var(--space-xs);
+      display:none;line-height:1.6;
+      letter-spacing:.02em
+    }
+    .counter-stats.show{display:block}
+    .counter-stats .cs-r{color:var(--red)}
+    .counter-stats .cs-g{color:var(--green)}
+    .counter-stats .cs-sep{color:var(--faint);padding-inline:.35em}
+    .counter-stats .cs-egg{color:var(--muted);font-style:italic}
+
+    /* ── Progress ────────────────────────────────────────────── */
+    .progress-wrap{
+      padding:var(--space-lg) 0;margin-bottom:var(--space-2xl)
+    }
+    .progress-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-sm)}
+    .progress-title{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}
+    .progress-next{font-size:.6875rem;color:var(--faint)}
+    .progress-bar{height:2px;background:var(--surface-4);overflow:hidden}
+    /* Smooth deceleration — no elastic/spring easing */
+    .progress-fill{height:100%;background:var(--red);transition:width .6s cubic-bezier(.16,1,.3,1)}
+
+    .cta-row{display:flex;gap:var(--space-sm);flex-wrap:wrap;margin-bottom:var(--space-3xl);align-items:center}
+    /* Primary CTA in hero gets larger treatment */
+    .cta-row .btn-primary{
+      font-size:1rem;
+      padding:var(--s4) var(--s8);
+      letter-spacing:.02em
+    }
+
+    /* ── Section ─────────────────────────────────────────────── */
+    .section{padding-block:var(--s12);border-top:1px solid var(--border)}
+    .section-hdr{margin-bottom:var(--s8)}
+    .section-hdr-row{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:var(--s4)}
+    .section-title{
+      font-family:var(--font-d);font-size:clamp(1.5rem,4vw,2.25rem);
+      font-weight:900;letter-spacing:-.03em;margin-bottom:var(--space-xs);
+      line-height:1
+    }
+    .section-sub{color:var(--muted);font-size:.8125rem;text-transform:uppercase;letter-spacing:.08em}
+
+    /* ── Form ────────────────────────────────────────────────── */
+    .form-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-xl);padding:var(--s8)}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s4);margin-bottom:var(--s4)}
+    @media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+    .fg{display:flex;flex-direction:column;gap:var(--s2)}
+    .fg.full{grid-column:1/-1}
+    label{font-size:.6875rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+    input,select,textarea{
+      background:var(--surface-2);border:1px solid var(--border);
+      border-radius:var(--r-md);padding:var(--s3) var(--s4);
+      font-size:.875rem;width:100%;outline:none
+    }
+    input:focus,select:focus,textarea:focus{border-color:var(--red);box-shadow:0 0 0 3px var(--red-dim)}
+    textarea{resize:vertical;min-height:88px}
+    select option{background:var(--surface-2)}
+    .form-actions{display:flex;gap:var(--s3);justify-content:flex-end;margin-top:var(--s6)}
+
+    /* ── History list — ledger style ────────────────────────── */
+    .hist-list{display:flex;flex-direction:column;gap:0}
+    .call-card{
+      background:transparent;
+      border:none;
+      border-bottom:1px solid var(--border);
+      border-radius:0;
+      padding:var(--s6) 0;
+      display:grid;grid-template-columns:1fr auto;gap:var(--s6);align-items:start;
+      transition:background var(--tr)
+    }
+    .call-card:first-child{border-top:1px solid var(--border)}
+    .call-card:hover{background:var(--surface)}
+    @media(max-width:480px){.call-card{grid-template-columns:1fr}}
+    .call-meta{display:flex;align-items:center;gap:var(--s3);flex-wrap:wrap;margin-bottom:var(--s2)}
+    /* Asset tag is the accent — large, bold, red */
+    .call-asset{
+      font-family:var(--font-d);font-size:.6875rem;font-weight:900;
+      letter-spacing:.14em;text-transform:uppercase;
+      color:var(--red);
+      background:var(--red-dim);
+      padding:.15em .5em;
+      border-radius:var(--r-sm)
+    }
+    .call-date{font-size:.75rem;color:var(--muted)}
+    .call-price{
+      font-size:.75rem;font-family:var(--font-b);
+      font-variant-numeric:tabular-nums;
+      color:var(--muted);
+      padding:0;background:none;border-radius:0
+    }
+    .call-price::before{content:'@';margin-right:.25em;opacity:.4}
+    .call-q{font-size:.9375rem;color:var(--text);font-style:italic;line-height:1.5;margin-top:var(--s1)}
+    .call-q::before{content:'"';opacity:.3;margin-right:.1em}
+    .call-q::after{content:'"';opacity:.3;margin-left:.1em}
+
+    .call-actions{display:flex;flex-direction:column;align-items:flex-end;gap:var(--s2)}
+    @media(max-width:480px){.call-actions{flex-direction:row;align-items:center}}
+
+    .badge{display:inline-flex;align-items:center;gap:4px;font-size:.6875rem;font-weight:700;padding:3px 10px;border-radius:var(--r-full);text-transform:uppercase;letter-spacing:.06em;white-space:nowrap}
+    .b-wait{background:var(--surface-3);color:var(--muted)}
+    .b-rekt{background:var(--red-dim);color:var(--red)}
+    .b-ok{background:var(--green-dim);color:var(--green)}
+    .b-early{background:var(--amber-dim);color:var(--amber)}
+
+    .oc-sel{font-size:.75rem;padding:var(--s1) var(--s3);border-radius:var(--r-sm);background:var(--surface-3);border-color:var(--border);min-height:2rem;cursor:pointer}
+    .del-btn{color:var(--faint);font-size:.75rem;padding:var(--s1) var(--s3);border-radius:var(--r-sm);min-height:2rem;min-width:2rem}
+    .del-btn:hover{color:var(--red);background:var(--red-dim)}
+    .del-btn:active{opacity:.7}
+
+    /* ── Empty state ─────────────────────────────────────────── */
+    .empty{padding:var(--space-3xl) 0;color:var(--muted);border-top:1px solid var(--border)}
+    .empty-rule{display:none} /* replaced by border-top */
+    .empty h3{font-family:var(--font-d);font-size:clamp(1.25rem,3vw,1.75rem);font-weight:900;color:var(--text);margin-bottom:var(--space-xs);letter-spacing:-.02em;line-height:1.1}
+    .empty p{font-size:.8125rem;max-width:44ch;line-height:1.55;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
+
+    /* ── Modal ───────────────────────────────────────────────── */
+    .overlay{
+      position:fixed;inset:0;background:oklch(5% .005 22 / .88);
+      display:flex;align-items:center;justify-content:center;
+      z-index:100;padding:var(--s4);
+      opacity:0;pointer-events:none;transition:opacity var(--tr)
+    }
+    .overlay.on{opacity:1;pointer-events:all}
+    .modal{
+      background:var(--surface);border:1px solid var(--border);
+      border-radius:var(--r-xl);padding:var(--s8);max-width:520px;width:100%;
+      transform:scale(.95) translateY(8px);transition:transform var(--tr)
+    }
+    .overlay.on .modal{transform:scale(1) translateY(0)}
+    .modal-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--s6)}
+    .modal-title{font-family:var(--font-d);font-size:1.25rem;font-weight:800;letter-spacing:-.015em}
+    .modal-x{color:var(--muted);font-size:1.125rem;padding:var(--s2);min-width:2.5rem;min-height:2.5rem;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm)}
+    .modal-x:hover{color:var(--text);background:var(--surface-2)}
+    #cardWrap{border-radius:var(--r-lg);overflow:hidden;margin-bottom:var(--s6);border:1px solid var(--border)}
+    #shareCanvas{display:block;width:100%;height:auto}
+    .modal-foot{display:flex;gap:var(--s3);justify-content:flex-end}
+
+    footer{border-top:1px solid var(--border);padding:var(--s8) 0;color:var(--muted);font-size:.75rem;text-align:center}
+
+    /* ── Inline delete confirm ───────────────────────────────── */
+    .del-btn.confirming{color:var(--red);background:var(--red-dim)}
+
+    /* ── Logo hover ──────────────────────────────────────────── */
+    .logo-svg{transition:transform .2s cubic-bezier(.16,1,.3,1)}
+    .logo:hover .logo-svg{transform:rotate(-8deg) scale(1.08)}
+
+    /* ── Tier unlock flash ───────────────────────────────────── */
+    @keyframes tierUnlock{
+      0%{opacity:0;transform:translateY(-8px) scale(.95)}
+      15%{opacity:1;transform:translateY(0) scale(1.04)}
+      85%{opacity:1;transform:translateY(0) scale(1)}
+      100%{opacity:0;transform:translateY(4px)}
+    }
+    .tier-toast{
+      position:fixed;top:var(--space-xl);left:50%;transform:translateX(-50%);
+      background:var(--surface);border:1px solid var(--red-border);
+      color:var(--text);font-family:var(--font-d);font-size:.8125rem;font-weight:700;
+      letter-spacing:.04em;text-transform:uppercase;
+      padding:.5rem 1.25rem;border-radius:var(--r-full);
+      pointer-events:none;z-index:200;white-space:nowrap;
+      animation:tierUnlock 2.2s cubic-bezier(.16,1,.3,1) forwards
+    }
+    .tier-toast .tt-label{color:var(--red)}
+
+    /* ── Add button submitted state ──────────────────────────── */
+    .btn-primary.submitted{background:oklch(48% .22 25);pointer-events:none}
+
+    /* ── Sobriety badge ──────────────────────────────────────── */
+    .sober-badge{
+      display:none;align-items:center;gap:var(--space-xs);
+      background:transparent;border:none;
+      color:var(--green);font-size:.6875rem;font-weight:700;
+      letter-spacing:.14em;text-transform:uppercase;
+      padding:0;
+      margin-bottom:var(--space-sm)
+    }
+    .sober-badge::before{
+      content:'';display:inline-block;
+      width:1.5rem;height:2px;background:var(--green);
+      margin-right:.5em;vertical-align:.1em;flex-shrink:0
+    }
+    .sober-badge.show{display:inline-flex}
+
+    /* ── Toolbar (import/export) ─────────────────────────────── */
+    .toolbar{display:flex;gap:var(--s2);align-items:center}
+    .btn-xs{padding:var(--s1) var(--s3);font-size:.75rem;font-weight:700;border-radius:var(--r-sm)}
+
+    /* ── Price oracle state ──────────────────────────────────── */
+    .price-hint{font-size:.6875rem;color:var(--muted);margin-top:2px;min-height:1.2em}
+    .price-hint.loading{color:var(--amber)}
+    .price-hint.ok{color:var(--green)}
+    .price-hint.err{color:var(--faint)}
+
+    /* ── Entrance animation ──────────────────────────────────── */
+    @keyframes fadeUp{
+      from{opacity:0;transform:translateY(12px)}
+      to{opacity:1;transform:translateY(0)}
+    }
+    .tier-badge{animation:fadeUp .4s cubic-bezier(.16,1,.3,1) both}
+    .big-counter{animation:fadeUp .5s .05s cubic-bezier(.16,1,.3,1) both}
+    .counter-sub{animation:fadeUp .5s .1s cubic-bezier(.16,1,.3,1) both}
+    .counter-stats{animation:fadeUp .4s .15s cubic-bezier(.16,1,.3,1) both}
+    .roast{animation:fadeUp .4s .2s cubic-bezier(.16,1,.3,1) both}
+    .progress-wrap{animation:fadeUp .4s .15s cubic-bezier(.16,1,.3,1) both}
+    .cta-row{animation:fadeUp .4s .2s cubic-bezier(.16,1,.3,1) both}
+
+    /* ── Late-night mode ────────────────────────────────────────── */
+    .roast-by.late-night::after{
+      content:' · still up at 2am. respect.';
+      color:var(--faint);font-style:italic;font-weight:400;
+      letter-spacing:.06em
+    }
+
+    /* ── Same-asset aside ───────────────────────────────────────── */
+    .call-aside{
+      font-size:.6875rem;color:var(--faint);font-style:italic;
+      padding:var(--space-xs) 0 0;
+      letter-spacing:.04em;
+      border-top:none
+    }
+
+    /* ── Konami unlock toast ─────────────────────────────────────── */
+    @keyframes konamiPulse{
+      0%{opacity:0;transform:translateX(-50%) scale(.92)}
+      12%{opacity:1;transform:translateX(-50%) scale(1.06)}
+      80%{opacity:1;transform:translateX(-50%) scale(1)}
+      100%{opacity:0;transform:translateX(-50%) scale(.96)}
+    }
+    .konami-toast{
+      position:fixed;top:var(--space-xl);left:50%;transform:translateX(-50%);
+      background:var(--surface);border:1px solid var(--red-border);
+      color:var(--text);font-family:var(--font-d);font-size:.8125rem;font-weight:700;
+      letter-spacing:.08em;text-transform:uppercase;
+      padding:.5rem 1.5rem;border-radius:var(--r-full);
+      pointer-events:none;z-index:200;white-space:nowrap;
+      animation:konamiPulse 2.8s cubic-bezier(.16,1,.3,1) forwards
+    }
+    .konami-toast span{color:var(--red)}
+
+    /* ── Reduced motion ──────────────────────────────────────── */
+    @media(prefers-reduced-motion:reduce){
+      *,*::before,*::after{
+        animation-duration:.01ms !important;
+        animation-iteration-count:1 !important;
+        transition-duration:.01ms !important;
+        scroll-behavior:auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="hdr">
+      <div class="logo">
+        <svg class="logo-svg" width="38" height="38" viewBox="0 0 38 38" fill="none" aria-label="Bull Market Relapse Counter" style="--bull-red:var(--red);--bull-text:var(--text);--bull-bg:var(--bg)">
+          <circle cx="19" cy="19" r="18" stroke="var(--bull-red)" stroke-width="1.8"/>
+          <path d="M10 18 C6 18 3 12 6 8" stroke="var(--bull-red)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <path d="M28 18 C32 18 35 12 32 8" stroke="var(--bull-red)" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="12" y="18" width="14" height="10" rx="5" fill="var(--bull-text)" opacity="0.12" stroke="var(--bull-text)" stroke-width="1.4"/>
+          <circle cx="15.5" cy="23" r="1.8" fill="var(--bull-bg)" stroke="var(--bull-text)" stroke-width="1"/>
+          <circle cx="22.5" cy="23" r="1.8" fill="var(--bull-bg)" stroke="var(--bull-text)" stroke-width="1"/>
+          <circle cx="14.5" cy="16.5" r="1.6" fill="var(--bull-text)"/>
+          <circle cx="23.5" cy="16.5" r="1.6" fill="var(--bull-text)"/>
+          <path d="M12.5 14 L16.5 15.2" stroke="var(--bull-red)" stroke-width="1.4" stroke-linecap="round"/>
+          <path d="M25.5 14 L21.5 15.2" stroke="var(--bull-red)" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        <div class="logo-text">Bull Market <em>Relapse</em></div>
+      </div>
+      <button class="btn btn-ghost" onclick="openShare()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        Share
+      </button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <!-- ── Hero ── -->
+    <section class="hero">
+      <div class="tier-badge" id="tierBadge">🌱 First Timer</div>
+      <div class="sober-badge" id="soberBadge">🌿 30 Days Clean</div>
+
+      <div class="big-counter" id="counter">0</div>
+      <div class="counter-sub">times you've called "this is the bottom"</div>
+      <div class="counter-stats" id="counterStats"></div>
+
+      <div class="roast" id="roastCard">
+        <div class="roast-q" id="roastText"></div>
+        <div class="roast-by" id="roastBy">— Bull Market Relapse Counter</div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-top">
+          <span class="progress-title">Shame Tier</span>
+          <span class="progress-next" id="pNext">Log your first relapse</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="pFill" style="width:0%"></div></div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn btn-primary" onclick="scrollForm()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Log a Relapse
+        </button>
+        <button class="btn btn-ghost" onclick="openShare()">Share My Shame</button>
+      </div>
+    </section>
+
+    <!-- ── Add Form ── -->
+    <section class="section" id="addSection">
+      <div class="section-hdr">
+        <div class="section-title">Log a New Relapse</div>
+        <div class="section-sub">Be honest. The market knows.</div>
+      </div>
+      <div class="form-card">
+        <div class="form-grid">
+          <div class="fg">
+            <label for="fAsset">Asset</label>
+            <select id="fAsset">
+              <option>BTC</option><option>ETH</option><option>SOL</option>
+              <option>ALT</option><option>MEME</option><option>OTHER</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label for="fDate">Date of incident</label>
+            <input type="date" id="fDate">
+          </div>
+          <div class="fg">
+            <label for="fPrice">Price at the time</label>
+            <input type="text" id="fPrice" placeholder="e.g. $74,200">
+            <div class="price-hint" id="priceHint"></div>
+          </div>
+          <div class="fg">
+            <label for="fOutcome">Outcome</label>
+            <select id="fOutcome">
+              <option value="waiting">⏳ Still waiting</option>
+              <option value="rekt">🩸 Rekt — went lower</option>
+              <option value="right">✅ Actually right</option>
+              <option value="early">⚡ Right, sold too early</option>
+            </select>
+          </div>
+          <div class="fg full">
+            <label for="fQuote">What did you say exactly?</label>
+            <textarea id="fQuote" placeholder='e.g. "generational wealth territory, we are so back, my cousin is buying"'></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-ghost" onclick="clearForm()">Clear</button>
+          <button class="btn btn-primary" onclick="addCall()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Relapse
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── History ── -->
+    <section class="section">
+      <div class="section-hdr section-hdr-row">
+        <div>
+          <div class="section-title">Your Bottom Call History</div>
+          <div class="section-sub" id="histSub"></div>
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-ghost btn-xs" onclick="exportData()" title="Download your call history as JSON">⬇ Export history</button>
+        </div>
+      </div>
+      <div class="hist-list" id="histList">
+        <div class="empty">
+          <span class="empty-rule"></span>
+          <h3>Clean slate — for now</h3>
+          <p>No bottom calls logged yet. We both know that's not true.</p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">Built for the perpetually early. We're all going to make it — eventually.</div>
+</footer>
+
+<!-- ── Share Modal ── -->
+<div class="overlay" id="overlay" onclick="closeShare(event)">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">Go On. Post It.</div>
+      <button class="modal-x" onclick="closeShare()">✕</button>
+    </div>
+    <div id="cardWrap"><canvas id="shareCanvas" width="1000" height="560"></canvas></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="copyTweetBtn" onclick="copyTweet()">Copy post</button>
+      <button class="btn btn-primary" onclick="dlCard()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Save Evidence
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+<script>
+// ── Data ────────────────────────────────────────────────────────────────────
+let calls = JSON.parse(localStorage.getItem('bmrc') || '[]');
+
+const TIERS = [
+  { min:0,  max:0,  label:'🌱 First Timer',            roast:null },
+  { min:1,  max:3,  label:'🐂 Cautious Optimist',       roast:"Still early days. Your conviction is genuinely adorable." },
+  { min:4,  max:7,  label:'🔴 Pattern Emerging',        roast:"The chart may be down, but your optimism never wavered. That's something." },
+  { min:8,  max:15, label:'💀 Certified Permabull',     roast:"At this point you're not calling bottoms, you're ordering them like pizza." },
+  { min:16, max:25, label:'🔮 The Bottom Whisperer',    roast:"You've been right so many times — you just haven't found out yet." },
+  { min:26, max:50, label:'🎰 High Conviction Animal',  roast:"The bottom isn't a location you visit. It's a state of mind you live in." },
+  { min:51, max:Infinity, label:'👑 Bottom Is A Lifestyle', roast:"Researchers study you. The bottom literally moves when you tweet." },
+];
+
+const EXTRA_ROASTS = [
+  "Your bottom calls have their own Linktree at this point.",
+  "If you were a technical indicator you'd be a perpetual oversold signal.",
+  "DCA stands for Definitely Called Again.",
+  "Your friends turned off your notifications but they still follow for the lore.",
+  "The market is in price discovery. You're in denial discovery.",
+  "You have more bottom calls than Satoshi has UTXOs.",
+  "TradFi analysts have a case study on your conviction. Unpublished. Out of respect.",
+  "Your bottom calls have better timing than your exit calls. Unfortunately.",
+  "NGMI is a mindset. You've adopted it as an identity.",
+  "You've seen so many bottoms you qualify for a loyalty card.",
+  "Every candle is a buying opportunity. Every wick is confirmation. You are at peace.",
+  "Position size: max. Conviction: unwavering. Outcome: TBD.",
+];
+
+// ── Init ────────────────────────────────────────────────────────────────────
+document.getElementById('fDate').valueAsDate = new Date();
+
+// Rotating quote placeholders — cycles every 6s
+const QUOTE_PLACEHOLDERS = [
+  '"generational wealth territory, we are so back"',
+  '"this is literally the bottom, i\'ve never been more sure"',
+  '"accumulation phase confirmed, loading up"',
+  '"the whales are buying, i can feel it"',
+  '"we are so early, this is a gift"',
+  '"100k by end of month, calling it now"',
+  '"just bought more, this is free money"',
+  '"the fundamentals have never been stronger"',
+];
+let _phIdx = 0;
+const _qta = document.getElementById('fQuote');
+function rotatePlaceholder(){
+  if(document.activeElement === _qta) return; // don't change while typing
+  _phIdx = (_phIdx + 1) % QUOTE_PLACEHOLDERS.length;
+  _qta.setAttribute('placeholder', QUOTE_PLACEHOLDERS[_phIdx]);
+}
+setInterval(rotatePlaceholder, 6000);
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+function save(){ localStorage.setItem('bmrc', JSON.stringify(calls)); }
+
+function getTier(n){ return TIERS.find(t => n >= t.min && n <= t.max) || TIERS.at(-1); }
+
+// Milestone counts that get special roasts instead of cycling ones
+const MILESTONE_ROASTS = {
+  10:  "10. A round number. A warning sign.",
+  25:  "25 times. You are statistically not learning.",
+  50:  "50 bottom calls. This is no longer a mistake. It's a philosophy.",
+  100: "100. Three digits. You have achieved something.",
+};
+
+let _lastTierIdx = -1;
+let _pendingStreakRoast = null;
+
+function checkTierUnlock(total){
+  const tier = getTier(total);
+  const idx = TIERS.indexOf(tier);
+  if(idx > _lastTierIdx && _lastTierIdx >= 0){
+    showTierToast(tier.label);
+  }
+  _lastTierIdx = idx;
+}
+
+function showTierToast(label){
+  const t = document.createElement('div');
+  t.className = 'tier-toast';
+  t.innerHTML = `Tier unlocked: <span class="tt-label">${label}</span>`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2400);
+}
+
+// Set initial tier index silently so first render doesn't fire a toast
+_lastTierIdx = TIERS.indexOf(getTier(calls.length));
+render();
+// Fetch price after a brief delay to let the page settle
+setTimeout(fetchLivePrice, 100);
+
+// Console easter egg — for the degens who inspect source
+console.log(
+  '%c Bull Market Relapse Counter ',
+  'background:#e03535;color:#fff;font-size:14px;font-weight:bold;padding:4px 8px;border-radius:3px'
+);
+console.log('%cYou found the console. Respect.', 'color:#74706f;font-size:12px');
+console.log('%cIf you\'re reading this, you\'ve called the bottom at least once. We both know it.', 'color:#3e3b3b;font-size:11px');
+
+function stats(){
+  const total = calls.length;
+  const rekt  = calls.filter(c => c.outcome==='rekt').length;
+  const right = calls.filter(c => c.outcome==='right'||c.outcome==='early').length;
+  const resolved = calls.filter(c => c.outcome!=='waiting').length;
+  const acc   = resolved > 0 ? Math.round(right/resolved*100) : null;
+  let days = null;
+  if(calls.length){
+    const last = calls.map(c=>new Date(c.date)).sort((a,b)=>b-a)[0];
+    days = Math.floor((new Date()-last)/864e5);
+  }
+  return {total,rekt,right,acc,days};
+}
+
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ── Render ──────────────────────────────────────────────────────────────────
+function render(){
+  const s = stats();
+  const tier = getTier(s.total);
+  const tierIdx = TIERS.indexOf(tier);
+  const next = TIERS[tierIdx+1];
+
+  // Counter + title
+  animN('counter', s.total);
+  document.title = s.total > 0
+    ? `${s.total}× — Bull Market Relapse`
+    : 'Bull Market Relapse Counter';
+  document.getElementById('tierBadge').textContent = tier.label;
+
+  // Tier unlock check (only fires when count increases)
+  checkTierUnlock(s.total);
+
+  // Sobriety badge — 30+ days clean
+  const sober = document.getElementById('soberBadge');
+  if(s.days !== null && s.days >= 30){
+    sober.textContent = `🌿 ${s.days} Days Clean`;
+    sober.classList.add('show');
+  } else {
+    sober.classList.remove('show');
+  }
+
+  // Roast — streak broken > milestone > cycling > tier
+  const rc = document.getElementById('roastCard');
+  if(s.total > 0){
+    let roast;
+    if(_pendingStreakRoast){
+      roast = _pendingStreakRoast;
+    } else if(MILESTONE_ROASTS[s.total]){
+      roast = MILESTONE_ROASTS[s.total];
+    } else if(s.total >= 8){
+      roast = EXTRA_ROASTS[s.total % EXTRA_ROASTS.length];
+    } else {
+      roast = tier.roast || '';
+    }
+    document.getElementById('roastText').textContent = roast;
+    rc.classList.add('show');
+  } else { rc.classList.remove('show'); }
+
+  // Inline stats line (shown only when calls exist)
+  const csEl = document.getElementById('counterStats');
+  if(s.total > 0){
+    const daysStr = s.days !== null ? `<span class="cs-r">${s.days}</span> days since last call` : 'first entry';
+    const rektStr = `<span class="cs-r">${s.rekt}</span> rekt`;
+    const rightStr = `<span class="cs-g">${s.right}</span> right`;
+    const accStr = s.acc !== null ? `<span>${s.acc}%</span> accuracy` : null;
+    // Easter egg: accuracy 0% message
+    const accDisplay = s.acc === 0 && s.right === 0 && s.rekt > 0
+      ? `<span class="cs-egg">0% accuracy — clean sweep, historically wrong, stay humble</span>`
+      : (accStr ? `<span class="cs-sep">·</span>${accStr}` : '');
+    csEl.innerHTML = `${daysStr}<span class="cs-sep">·</span>${rektStr}<span class="cs-sep">·</span>${rightStr}${accDisplay}`;
+    csEl.classList.add('show');
+  } else {
+    csEl.classList.remove('show');
+  }
+
+  // Progress
+  if(next){
+    const pct = ((s.total - tier.min)/(next.min - tier.min))*100;
+    document.getElementById('pFill').style.width = Math.min(pct,100)+'%';
+    const rem = next.min - s.total;
+    document.getElementById('pNext').textContent = `${rem} more to ${next.label}`;
+  } else {
+    document.getElementById('pFill').style.width = '100%';
+    document.getElementById('pNext').textContent = 'Maximum shame. No further to fall.';
+  }
+
+  // History
+  renderHist(s);
+}
+
+function renderHist(s){
+  const list = document.getElementById('histList');
+  const sub  = document.getElementById('histSub');
+  if(!calls.length){
+    sub.textContent = '';
+    list.innerHTML = `<div class="empty"><span class="empty-rule"></span><h3>Clean slate — for now</h3><p>We both know that's not true.</p></div>`;
+    return;
+  }
+  sub.textContent = `${calls.length} relapse${calls.length!==1?'s':''} on record.`;
+  const sorted = [...calls].map((c,i)=>({...c,_i:i})).sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  // Detect same asset 3+ in a row (by date order) for the aside comment
+  const ASSET_ASIDES = {
+    BTC: ['again with the BTC, huh', 'bitcoin specifically. interesting choice.', 'BTC. still. ok.'],
+    ETH: ['ETH, three times in a row. staying loyal.', 'ETH again. conviction or cope?', 'persistent ETH energy.'],
+    SOL: ['SOL. relentlessly. respect.', 'you and SOL have something going on.', 'SOL enjoyer, clearly.'],
+    ALT: ['back to alts. predictably.', 'alts again. okay.', 'the alt season call, third time.'],
+    MEME: ['memes. three in a row. you\'re the target demographic.', 'still on memes. noted.', 'meme conviction is a personality trait.'],
+    OTHER: ['whatever this is, three times.', 'mystery asset, third call.', 'we don\'t know what you\'re buying but you keep buying it.'],
+  };
+  // Build set of indices (in sorted order) that follow 2+ consecutive same asset
+  const sameAsideSet = new Set();
+  for(let i=2; i<sorted.length; i++){
+    if(sorted[i].asset === sorted[i-1].asset && sorted[i-1].asset === sorted[i-2].asset){
+      // Mark item at index i-2 (the oldest of the 3 = appears last in sorted/reversed list)
+      // Actually insert aside AFTER item i (the third duplicate, earliest in date = appears at bottom)
+      sameAsideSet.add(i);
+    }
+  }
+
+  const ocMap = {
+    waiting:{l:'⏳ Still waiting',  cls:'b-wait'},
+    rekt:   {l:'🩸 Rekt',           cls:'b-rekt'},
+    right:  {l:'✅ Actually right',  cls:'b-ok'},
+    early:  {l:'⚡ Right, too early',cls:'b-early'},
+  };
+  list.innerHTML = sorted.map((c,si)=>{
+    const oc = ocMap[c.outcome]||ocMap.waiting;
+    const dt = new Date(c.date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    // Same-asset aside: pick a deterministic variation based on asset
+    let asideHtml = '';
+    if(sameAsideSet.has(si)){
+      const asides = ASSET_ASIDES[c.asset] || ASSET_ASIDES.OTHER;
+      // Deterministic: use sorted index mod length so it doesn't change on re-render
+      const asideText = asides[si % asides.length];
+      asideHtml = `<div class="call-aside">— ${asideText}</div>`;
+    }
+    return `<div class="call-card">
+      <div>
+        <div class="call-meta">
+          <span class="call-asset">${c.asset}</span>
+          <span class="call-date">${dt}</span>
+          ${c.price?`<span class="call-price">@ ${esc(c.price)}</span>`:''}
+        </div>
+        ${c.quote?`<div class="call-q">${esc(c.quote)}</div>`:''}
+      </div>
+      <div class="call-actions">
+        <span class="badge ${oc.cls}">${oc.l}</span>
+        <select class="oc-sel" onchange="updOC(${c._i},this.value)">
+          <option value="waiting" ${c.outcome==='waiting'?'selected':''}>⏳ Still waiting</option>
+          <option value="rekt"    ${c.outcome==='rekt'   ?'selected':''}>🩸 Rekt</option>
+          <option value="right"   ${c.outcome==='right'  ?'selected':''}>✅ Actually right</option>
+          <option value="early"   ${c.outcome==='early'  ?'selected':''}>⚡ Right, too early</option>
+        </select>
+        <button class="del-btn" data-i="${c._i}" onclick="del(${c._i})" title="Delete">✕</button>
+      </div>
+    </div>${asideHtml}`;
+  }).join('');
+}
+
+function animN(id, target){
+  const el = document.getElementById(id);
+  const from = parseInt(el.textContent)||0;
+  if(from===target) return;
+  const steps = Math.min(Math.abs(target-from), 25);
+  let cur = from, i = 0;
+  const iv = setInterval(()=>{
+    cur += (target-from)/steps; i++;
+    el.textContent = Math.round(cur);
+    if(i>=steps){ el.textContent=target; clearInterval(iv); }
+  }, 22);
+}
+
+// ── CRUD ────────────────────────────────────────────────────────────────────
+// Easter egg prices — checked at submit
+const EASTER_PRICES = {
+  '69420': "69,420. of course.",
+  '69,420': "69,420. of course.",
+  '$69420': "69,420. of course.",
+  '$69,420': "69,420. of course.",
+  '420': "nice.",
+  '$420': "nice.",
+  '100000': "you called it at 100k. bold.",
+  '$100000': "you called it at 100k. bold.",
+  '$100,000': "you called it at 100k. bold.",
+  '100,000': "you called it at 100k. bold.",
+};
+
+function addCall(){
+  const rawPrice = document.getElementById('fPrice').value.trim();
+  const easterKey = rawPrice.replace(/\s/g,'').toLowerCase();
+  const easterMsg = Object.entries(EASTER_PRICES).find(([k])=>k.toLowerCase()===easterKey)?.[1];
+
+  const prevCount = calls.length;
+  const prevStats = stats(); // capture before adding
+
+  const call = {
+    asset:   document.getElementById('fAsset').value,
+    date:    document.getElementById('fDate').value || new Date().toISOString().split('T')[0],
+    price:   rawPrice,
+    quote:   document.getElementById('fQuote').value.trim(),
+    outcome: document.getElementById('fOutcome').value,
+    id:      Date.now()
+  };
+  calls.push(call);
+
+  // Check if a sobriety streak is being broken — capture before render overwrites roast
+  const streakRoast = getStreakBrokenRoast(prevStats.days);
+  if(streakRoast) _pendingStreakRoast = streakRoast;
+
+  save(); render(); clearForm();
+
+  // First relapse ever
+  maybeShowFirstRelapse(prevCount);
+
+  // Clear streak roast override after render used it
+  _pendingStreakRoast = null;
+
+  // Easter egg: flash a message in the price hint if a magic price was entered
+  if(easterMsg){
+    const hint = document.getElementById('priceHint');
+    hint.textContent = easterMsg;
+    hint.className = 'price-hint ok';
+    setTimeout(()=>{ hint.textContent=''; hint.className='price-hint'; }, 3000);
+  }
+
+  // Counter flash
+  const c = document.getElementById('counter');
+  c.classList.add('flash');
+  setTimeout(()=>c.classList.remove('flash'),700);
+
+  // Button feedback — brief "logged." then restore
+  const addBtn = document.querySelector('.form-actions .btn-primary');
+  if(addBtn){
+    const orig = addBtn.innerHTML;
+    addBtn.classList.add('submitted');
+    addBtn.innerHTML = 'logged.';
+    setTimeout(()=>{ addBtn.innerHTML=orig; addBtn.classList.remove('submitted'); }, 1200);
+  }
+
+  document.getElementById('histList').scrollIntoView({behavior:'smooth'});
+  if(call.outcome==='right'||call.outcome==='early') fireConfetti();
+}
+
+function del(i){
+  // Find the button by data attribute to avoid confirm() dialog
+  const btn = document.querySelector(`.del-btn[data-i="${i}"]`);
+  if(!btn) return;
+  if(!btn.classList.contains('confirming')){
+    btn.classList.add('confirming');
+    btn.textContent = 'Really?';
+    btn._timer = setTimeout(()=>{
+      btn.classList.remove('confirming');
+      btn.textContent = '✕';
+    }, 2500);
+    return;
+  }
+  clearTimeout(btn._timer);
+  calls.splice(i,1); save(); render();
+}
+
+function updOC(i,v){
+  calls[i].outcome=v; save(); render();
+  if(v==='right'||v==='early') fireConfetti();
+}
+
+function clearForm(){
+  document.getElementById('fAsset').value='BTC';
+  document.getElementById('fDate').valueAsDate=new Date();
+  document.getElementById('fPrice').value='';
+  document.getElementById('fQuote').value='';
+  document.getElementById('fOutcome').value='waiting';
+  const hint = document.getElementById('priceHint');
+  hint.textContent=''; hint.className='price-hint';
+}
+
+function scrollForm(){
+  document.getElementById('addSection').scrollIntoView({behavior:'smooth'});
+  setTimeout(()=>document.getElementById('fQuote').focus(),500);
+}
+
+// ── Confetti — reluctant, not celebratory ────────────────────────────────────
+function fireConfetti(){
+  if(!window.confetti) return;
+  const reduced = window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(reduced) return;
+  // Two small bursts from the sides — surprised, not ecstatic
+  confetti({ particleCount:30, angle:60, spread:55, origin:{x:0,y:.65}, colors:['#e03535','#e5dfdf','#3e3b3b'] });
+  setTimeout(()=>{
+    confetti({ particleCount:30, angle:120, spread:55, origin:{x:1,y:.65}, colors:['#e03535','#e5dfdf','#3e3b3b'] });
+  }, 150);
+}
+
+// ── Import / Export ───────────────────────────────────────────────────────────
+function exportData(){
+  const blob = new Blob([JSON.stringify(calls, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `bull-market-relapse-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+
+// ── Price Oracle (Binance — no API key required) ──────────────────────────────
+const BINANCE_SYMBOLS = {
+  BTC: 'BTCUSDT', ETH: 'ETHUSDT', SOL: 'SOLUSDT',
+  ALT: null, MEME: null, OTHER: null
+};
+let _priceCache = {};
+let _priceFetchTimer = null;
+
+document.getElementById('fAsset').addEventListener('change', fetchLivePrice);
+
+async function fetchLivePrice(){
+  const asset = document.getElementById('fAsset').value;
+  const hint = document.getElementById('priceHint');
+  const symbol = BINANCE_SYMBOLS[asset];
+  if(!symbol){ hint.textContent=''; hint.className='price-hint'; return; }
+
+  // Use cache if fresh (< 60s)
+  const cached = _priceCache[symbol];
+  if(cached && Date.now() - cached.ts < 60000){
+    applyPrice(cached.price, hint);
+    return;
+  }
+
+  hint.textContent = 'Getting current price…';
+  hint.className = 'price-hint loading';
+
+  clearTimeout(_priceFetchTimer);
+  _priceFetchTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${symbol}`, {signal: AbortSignal.timeout(5000)});
+      if(!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      const price = parseFloat(data.price);
+      if(!price) throw new Error('no price');
+      _priceCache[symbol] = { price, ts: Date.now() };
+      applyPrice(price, hint);
+    } catch(err) {
+      hint.textContent = 'Price unavailable — enter it manually';
+      hint.className = 'price-hint err';
+    }
+  }, 300);
+}
+
+function applyPrice(price, hint){
+  const formatted = '$' + price.toLocaleString('en-US', {minimumFractionDigits: price < 1 ? 4 : 0, maximumFractionDigits: price < 1 ? 6 : 0});
+  document.getElementById('fPrice').value = formatted;
+  hint.textContent = `${formatted} — live price`;
+  hint.className = 'price-hint ok';
+}
+
+// ── Share Card ───────────────────────────────────────────────────────────────
+function openShare(){ drawCard(); document.getElementById('overlay').classList.add('on'); }
+
+function closeShare(e){
+  if(!e || e.target===document.getElementById('overlay'))
+    document.getElementById('overlay').classList.remove('on');
+}
+
+function drawCard(){
+  const cv = document.getElementById('shareCanvas');
+  const cx = cv.getContext('2d');
+  const W=1000, H=560;
+  cv.width=W; cv.height=H;
+  const s = stats();
+  const tier = getTier(s.total);
+
+  // bg
+  cx.fillStyle='#0d0c0c'; cx.fillRect(0,0,W,H);
+
+  // noise
+  for(let i=0;i<6000;i++){
+    cx.fillStyle=`rgba(255,255,255,${Math.random()*.012})`;
+    cx.fillRect(Math.random()*W,Math.random()*H,1,1);
+  }
+
+  // glow behind number
+  const g=cx.createRadialGradient(W/2,H/2-30,5,W/2,H/2-30,230);
+  g.addColorStop(0,'rgba(224,53,53,.22)'); g.addColorStop(1,'rgba(224,53,53,0)');
+  cx.fillStyle=g; cx.fillRect(0,0,W,H);
+
+  // border
+  rrect(cx,1,1,W-2,H-2,12);
+  cx.strokeStyle='rgba(224,53,53,.28)'; cx.lineWidth=2; cx.stroke();
+
+  // tier badge pill
+  cx.font='bold 13px sans-serif';
+  cx.textAlign='center';
+  const tw=cx.measureText(tier.label).width;
+  const bx=W/2-tw/2-18, by=52, bw=tw+36, bh=28;
+  rrect(cx,bx,by,bw,bh,14);
+  cx.fillStyle='rgba(224,53,53,.14)'; cx.fill();
+  cx.strokeStyle='rgba(224,53,53,.4)'; cx.lineWidth=1; cx.stroke();
+  cx.fillStyle='#e03535'; cx.fillText(tier.label, W/2, by+19);
+
+  // big number
+  const fontSize = s.total>=100 ? 160 : 200;
+  cx.font=`900 ${fontSize}px 'Cabinet Grotesk', sans-serif`;
+  cx.fillStyle='#e03535';
+  cx.textAlign='center';
+  cx.fillText(s.total.toString(), W/2, H/2+55);
+
+  // sub label
+  cx.font="400 21px 'Satoshi', sans-serif";
+  cx.fillStyle='#74706f';
+  cx.fillText('times you\'ve called \u201cthis is the bottom\u201d', W/2, H/2+98);
+
+  // stat cards
+  const items=[
+    {l:'Days Since Last', v: s.days!==null?s.days:'—'},
+    {l:'Times Rekt',      v: s.rekt},
+    {l:'Times Right',     v: s.right},
+    {l:'Accuracy',        v: s.acc!==null?s.acc+'%':'—'},
+  ];
+  const sw=175, sh=68, sg=18;
+  const tw2=items.length*sw+(items.length-1)*sg;
+  let sx=W/2-tw2/2;
+  items.forEach(it=>{
+    rrect(cx,sx,H-128,sw,sh,10);
+    cx.fillStyle='rgba(255,255,255,.05)'; cx.fill();
+    cx.font=`900 30px 'Cabinet Grotesk', sans-serif`;
+    cx.fillStyle='#e5dfdf'; cx.textAlign='center';
+    cx.fillText(String(it.v), sx+sw/2, H-128+sh*.55);
+    cx.font=`700 11px 'Satoshi', sans-serif`;
+    cx.fillStyle='#3e3b3b';
+    cx.fillText(it.l.toUpperCase(), sx+sw/2, H-128+sh*.85);
+    sx+=sw+sg;
+  });
+
+  // watermark
+  cx.font="700 12px 'Satoshi', sans-serif";
+  cx.fillStyle='#2a2727'; cx.textAlign='right';
+  cx.fillText('bullmarketrelapse.lol', W-22, H-18);
+}
+
+function rrect(cx,x,y,w,h,r){
+  cx.beginPath();
+  cx.moveTo(x+r,y); cx.lineTo(x+w-r,y);
+  cx.quadraticCurveTo(x+w,y,x+w,y+r); cx.lineTo(x+w,y+h-r);
+  cx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); cx.lineTo(x+r,y+h);
+  cx.quadraticCurveTo(x,y+h,x,y+h-r); cx.lineTo(x,y+r);
+  cx.quadraticCurveTo(x,y,x+r,y); cx.closePath();
+}
+
+function dlCard(){
+  const cv=document.getElementById('shareCanvas');
+  const a=document.createElement('a');
+  a.download='bull-market-relapse.png';
+  a.href=cv.toDataURL('image/png'); a.click();
+}
+
+function copyTweet(){
+  const s = stats();
+  const tier = getTier(s.total);
+  const roast = s.total >= 8
+    ? EXTRA_ROASTS[s.total % EXTRA_ROASTS.length]
+    : (tier.roast || '');
+  const accLine = s.acc !== null ? ` Accuracy: ${s.acc}%.` : '';
+  const text = `I've called the bottom ${s.total} time${s.total!==1?'s':''}.\n${tier.label}${accLine}\n\n"${roast}"\n\nbullmarketrelapse.lol`;
+  navigator.clipboard.writeText(text).then(()=>{
+    const btn = document.getElementById('copyTweetBtn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(()=>{ btn.textContent = orig; }, 2000);
+  }).catch(()=>{
+    // fallback: select a temp textarea
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    const btn = document.getElementById('copyTweetBtn');
+    btn.textContent = 'Copied'; setTimeout(()=>{ btn.textContent = 'Copy post'; }, 2000);
+  });
+}
+
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeShare(); });
+
+// ── Late-night mode ───────────────────────────────────────────────────────────
+(function lateNightMode(){
+  const h = new Date().getHours();
+  const isLateNight = h >= 22 || h < 4;
+  if(isLateNight){
+    const rb = document.getElementById('roastBy');
+    if(rb) rb.classList.add('late-night');
+  }
+})();
+
+// ── First relapse special toast ───────────────────────────────────────────────
+function maybeShowFirstRelapse(prevCount){
+  if(prevCount === 0){
+    // First ever relapse logged
+    showSpecialToast('Welcome to the club.', 'you were always going to end up here.');
+  }
+}
+
+function showSpecialToast(label, sub){
+  const t = document.createElement('div');
+  t.className = 'tier-toast';
+  t.innerHTML = `<span class="tt-label">${label}</span>${sub ? ' ' + sub : ''}`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2800);
+}
+
+// ── Sobriety streak broken ────────────────────────────────────────────────────
+// Called before adding a new call; returns override roast text if streak is broken
+function getStreakBrokenRoast(daysSinceLastCall){
+  if(daysSinceLastCall === null) return null;
+  if(daysSinceLastCall >= 30){
+    const d = daysSinceLastCall;
+    if(d >= 90) return `${d} days clean. Clean slate officially revoked.`;
+    if(d >= 60) return `${d} days without a bottom call. Then this.`;
+    return `${d} days clean. You were so close.`;
+  }
+  return null;
+}
+
+// ── Konami code ───────────────────────────────────────────────────────────────
+const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+let _konamiIdx = 0;
+document.addEventListener('keydown', e => {
+  if(e.key === KONAMI[_konamiIdx]){
+    _konamiIdx++;
+    if(_konamiIdx === KONAMI.length){
+      _konamiIdx = 0;
+      triggerKonami();
+    }
+  } else {
+    _konamiIdx = e.key === KONAMI[0] ? 1 : 0;
+  }
+});
+
+function triggerKonami(){
+  const t = document.createElement('div');
+  t.className = 'konami-toast';
+  const s = stats();
+  const msg = s.total === 0
+    ? 'cheat code activated. <span>you still haven\'t called the bottom.</span>'
+    : `cheat code activated. <span>still doesn't make ${s.total} calls go away.</span>`;
+  t.innerHTML = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 3000);
+  // Subtle: fire a tiny confetti burst from the center
+  if(window.confetti && !window.matchMedia('(prefers-reduced-motion:reduce)').matches){
+    confetti({ particleCount:15, spread:60, origin:{x:.5,y:.4}, colors:['#e03535','#e5dfdf','#3e3b3b'], scalar:.7 });
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Local Claude Code tooling — not part of the project
+.agents/
+.claude/
+.gstack/
+skills-lock.json
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+*.swp
