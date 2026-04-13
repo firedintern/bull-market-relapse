@@ -597,6 +597,10 @@
     <div id="cardWrap"><canvas id="shareCanvas" width="1000" height="560"></canvas></div>
     <div class="modal-foot">
       <button class="btn btn-ghost" id="copyTweetBtn" onclick="copyTweet()">Copy post</button>
+      <button class="btn btn-ghost" onclick="postOnX()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.259 5.63 5.905-5.63Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        Post on X
+      </button>
       <button class="btn btn-primary" onclick="dlCard()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Save Evidence
@@ -1183,6 +1187,17 @@ function copyTweet(){
     const btn = document.getElementById('copyTweetBtn');
     btn.textContent = 'Copied'; setTimeout(()=>{ btn.textContent = 'Copy post'; }, 2000);
   });
+}
+
+function postOnX(){
+  const s = stats();
+  const tier = getTier(s.total);
+  const roast = s.total >= 8
+    ? EXTRA_ROASTS[s.total % EXTRA_ROASTS.length]
+    : (tier.roast || '');
+  const accLine = s.acc !== null ? ` Accuracy: ${s.acc}%.` : '';
+  const text = `I've called the bottom ${s.total} time${s.total!==1?'s':''}.\n${tier.label}${accLine}\n\n"${roast}"\n\nbullmarketrelapse.lol`;
+  window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(text), '_blank', 'noopener');
 }
 
 document.addEventListener('keydown', e => { if(e.key==='Escape') closeShare(); });
