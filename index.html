@@ -1171,44 +1171,38 @@ function drawCard(){
   const s = stats();
   const tier = getTier(s.total);
 
-  // bg
-  cx.fillStyle='#0d0c0c'; cx.fillRect(0,0,W,H);
+  // bg — Kraken white
+  cx.fillStyle='#ffffff'; cx.fillRect(0,0,W,H);
 
-  // noise
-  for(let i=0;i<6000;i++){
-    cx.fillStyle=`rgba(255,255,255,${Math.random()*.012})`;
-    cx.fillRect(Math.random()*W,Math.random()*H,1,1);
-  }
-
-  // glow behind number
-  const g=cx.createRadialGradient(W/2,H/2-30,5,W/2,H/2-30,230);
-  g.addColorStop(0,'rgba(224,53,53,.22)'); g.addColorStop(1,'rgba(224,53,53,0)');
+  // subtle purple glow behind number
+  const g=cx.createRadialGradient(W/2,H/2-30,5,W/2,H/2-30,280);
+  g.addColorStop(0,'rgba(113,50,245,.07)'); g.addColorStop(1,'rgba(113,50,245,0)');
   cx.fillStyle=g; cx.fillRect(0,0,W,H);
 
   // border
-  rrect(cx,1,1,W-2,H-2,12);
-  cx.strokeStyle='rgba(224,53,53,.28)'; cx.lineWidth=2; cx.stroke();
+  rrect(cx,1,1,W-2,H-2,16);
+  cx.strokeStyle='#dedee5'; cx.lineWidth=2; cx.stroke();
 
   // tier badge pill
-  cx.font='bold 13px sans-serif';
+  cx.font='600 13px "IBM Plex Sans", sans-serif';
   cx.textAlign='center';
   const tw=cx.measureText(tier.label).width;
-  const bx=W/2-tw/2-18, by=52, bw=tw+36, bh=28;
+  const bx=W/2-tw/2-16, by=52, bw=tw+32, bh=28;
   rrect(cx,bx,by,bw,bh,14);
-  cx.fillStyle='rgba(224,53,53,.14)'; cx.fill();
-  cx.strokeStyle='rgba(224,53,53,.4)'; cx.lineWidth=1; cx.stroke();
-  cx.fillStyle='#e03535'; cx.fillText(tier.label, W/2, by+19);
+  cx.fillStyle='rgba(133,91,251,0.16)'; cx.fill();
+  cx.fillStyle='#7132f5';
+  cx.fillText(tier.label, W/2, by+19);
 
-  // big number
+  // big number — Kraken purple
   const fontSize = s.total>=100 ? 160 : 200;
-  cx.font=`900 ${fontSize}px 'Cabinet Grotesk', sans-serif`;
-  cx.fillStyle='#e03535';
+  cx.font=`700 ${fontSize}px "IBM Plex Sans", sans-serif`;
+  cx.fillStyle='#7132f5';
   cx.textAlign='center';
   cx.fillText(s.total.toString(), W/2, H/2+55);
 
   // sub label
-  cx.font="400 21px 'Satoshi', sans-serif";
-  cx.fillStyle='#74706f';
+  cx.font='400 21px "IBM Plex Sans", sans-serif';
+  cx.fillStyle='#9497a9';
   cx.fillText('times you\'ve called \u201cthis is the bottom\u201d', W/2, H/2+98);
 
   // stat cards
@@ -1223,19 +1217,20 @@ function drawCard(){
   let sx=W/2-tw2/2;
   items.forEach(it=>{
     rrect(cx,sx,H-128,sw,sh,10);
-    cx.fillStyle='rgba(255,255,255,.05)'; cx.fill();
-    cx.font=`900 30px 'Cabinet Grotesk', sans-serif`;
-    cx.fillStyle='#e5dfdf'; cx.textAlign='center';
+    cx.fillStyle='rgba(104,107,130,0.08)'; cx.fill();
+    cx.strokeStyle='#dedee5'; cx.lineWidth=1; cx.stroke();
+    cx.font='700 30px "IBM Plex Sans", sans-serif';
+    cx.fillStyle='#101114'; cx.textAlign='center';
     cx.fillText(String(it.v), sx+sw/2, H-128+sh*.55);
-    cx.font=`700 11px 'Satoshi', sans-serif`;
-    cx.fillStyle='#3e3b3b';
+    cx.font='500 11px "IBM Plex Sans", sans-serif';
+    cx.fillStyle='#9497a9';
     cx.fillText(it.l.toUpperCase(), sx+sw/2, H-128+sh*.85);
     sx+=sw+sg;
   });
 
   // watermark
-  cx.font="700 12px 'Satoshi', sans-serif";
-  cx.fillStyle='#2a2727'; cx.textAlign='right';
+  cx.font='600 12px "IBM Plex Sans", sans-serif';
+  cx.fillStyle='#dedee5'; cx.textAlign='right';
   cx.fillText('bullmarketrelapse.lol', W-22, H-18);
 }
 
