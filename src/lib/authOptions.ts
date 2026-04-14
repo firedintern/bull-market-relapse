@@ -6,8 +6,9 @@ import { supabase } from '@/lib/supabase'
 export const authOptions: NextAuthOptions = {
   providers: [
     Twitter({
-      clientId: process.env.TWITTER_API_KEY!,
-      clientSecret: process.env.TWITTER_API_SECRET!,
+      clientId: process.env.TWITTER_CLIENT_ID!,
+      clientSecret: process.env.TWITTER_CLIENT_SECRET!,
+      version: '2.0',
     }),
     Credentials({
       name: 'Email',
@@ -29,9 +30,9 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'twitter') {
-        const twitterProfile = profile as { screen_name?: string; profile_image_url_https?: string }
-        const handle = twitterProfile?.screen_name ?? null
-        const image = twitterProfile?.profile_image_url_https?.replace(/_normal\./, '.') ?? null
+        const twitterProfile = profile as { data?: { username?: string; profile_image_url?: string } }
+        const handle = twitterProfile?.data?.username ?? null
+        const image = twitterProfile?.data?.profile_image_url ?? null
         await supabase.from('profiles').upsert({
           id: user.id,
           username: handle ?? user.id,
