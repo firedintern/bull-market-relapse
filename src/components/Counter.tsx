@@ -1,0 +1,442 @@
+'use client'
+
+import { useEffect, useState, useRef } from 'react'
+import { signOut } from 'next-auth/react'
+import type { Session } from 'next-auth'
+import type { Call, Outcome } from '@/lib/types'
+
+// ── Tiers ────────────────────────────────────────────────────────────────────
+const TIERS = [
+  { min: 0,  max: 0,  label: '🌱 First Timer',           roast: null },
+  { min: 1,  max: 3,  label: '🐂 Cautious Optimist',      roast: "Still early days. Your conviction is genuinely adorable." },
+  { min: 4,  max: 7,  label: '🔴 Pattern Emerging',       roast: "The chart may be down, but your optimism never wavered. That's something." },
+  { min: 8,  max: 15, label: '💀 Certified Permabull',    roast: "At this point you're not calling bottoms, you're ordering them like pizza." },
+  { min: 16, max: 25, label: '🔮 The Bottom Whisperer',   roast: "You've been right so many times — you just haven't found out yet." },
+  { min: 26, max: 50, label: '🎰 High Conviction Animal', roast: "The bottom isn't a location you visit. It's a state of mind you live in." },
+  { min: 51, max: Infinity, label: '👑 Bottom Is A Lifestyle', roast: "Researchers study you. The bottom literally moves when you tweet." },
+]
+
+const EXTRA_ROASTS = [
+  "Your bottom calls have their own Linktree at this point.",
+  "If you were a technical indicator you'd be a perpetual oversold signal.",
+  "DCA stands for Definitely Called Again.",
+  "Your friends turned off your notifications but they still follow for the lore.",
+  "The market is in price discovery. You're in denial discovery.",
+  "You have more bottom calls than Satoshi has UTXOs.",
+  "TradFi analysts have a case study on your conviction. Unpublished. Out of respect.",
+  "Your bottom calls have better timing than your exit calls. Unfortunately.",
+  "NGMI is a mindset. You've adopted it as an identity.",
+  "You've seen so many bottoms you qualify for a loyalty card.",
+  "Every candle is a buying opportunity. Every wick is confirmation. You are at peace.",
+  "Position size: max. Conviction: unwavering. Outcome: TBD.",
+]
+
+const MILESTONE_ROASTS: Record<number, string> = {
+  10:  "10. A round number. A warning sign.",
+  25:  "25 times. You are statistically not learning.",
+  50:  "50 bottom calls. This is no longer a mistake. It's a philosophy.",
+  100: "100. Three digits. You have achieved something.",
+}
+
+const OUTCOME_BADGE: Record<Outcome, { label: string; cls: string }> = {
+  waiting: { label: '⏳ Waiting',    cls: 'bg-[rgba(104,107,130,0.12)] text-[#484b5e]' },
+  rekt:    { label: '🩸 Rekt',       cls: 'bg-[rgba(220,38,38,0.12)] text-[#991b1b]' },
+  right:   { label: '✅ Right',      cls: 'bg-[rgba(20,158,97,0.16)] text-[#026b3f]' },
+  early:   { label: '⚡ Too Early',  cls: 'bg-[rgba(217,119,6,0.14)] text-[#92400e]' },
+}
+
+const QUOTE_PLACEHOLDERS = [
+  '"generational wealth territory, we are so back"',
+  '"this is literally the bottom, i\'ve never been more sure"',
+  '"accumulation phase confirmed, loading up"',
+  '"the whales are buying, i can feel it"',
+  '"we are so early, this is a gift"',
+  '"100k by end of month, calling it now"',
+  '"just bought more, this is free money"',
+  '"the fundamentals have never been stronger"',
+]
+
+function getTier(n: number) {
+  return TIERS.find(t => n >= t.min && n <= t.max) ?? TIERS[TIERS.length - 1]
+}
+
+function getRoast(calls: Call[]) {
+  const n = calls.length
+  if (MILESTONE_ROASTS[n]) return MILESTONE_ROASTS[n]
+  const tier = getTier(n)
+  if (n > 8) return EXTRA_ROASTS[n % EXTRA_ROASTS.length]
+  return tier.roast ?? ''
+}
+
+function stats(calls: Call[]) {
+  const total = calls.length
+  const rekt = calls.filter(c => c.outcome === 'rekt').length
+  const right = calls.filter(c => c.outcome === 'right').length
+  const resolved = rekt + right
+  const acc = resolved > 0 ? Math.round((right / resolved) * 100) : null
+  const lastDate = calls.length > 0 ? new Date(calls[0].date) : null
+  const days = lastDate ? Math.floor((Date.now() - lastDate.getTime()) / 86400000) : null
+  return { total, rekt, right, acc, days }
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+export function Counter({ session }: { session: Session }) {
+  const user = session.user as { id?: string; username?: string; twitter_handle?: string; image?: string; name?: string }
+  const username = user.username ?? user.twitter_handle ?? user.name ?? 'you'
+  const profileUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/${username}`
+
+  const [calls, setCalls] = useState<Call[]>([])
+  const [loading, setLoading] = useState(true)
+  const [flash, setFlash] = useState(false)
+  const [toast, setToast] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  // Form state
+  const today = new Date().toISOString().split('T')[0]
+  const [fAsset, setFAsset] = useState('BTC')
+  const [fDate, setFDate] = useState(today)
+  const [fPrice, setFPrice] = useState('')
+  const [fOutcome, setFOutcome] = useState<Outcome>('waiting')
+  const [fQuote, setFQuote] = useState('')
+
+  // Rotating placeholder
+  const [phIdx, setPhIdx] = useState(0)
+  const quoteRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.activeElement !== quoteRef.current)
+        setPhIdx(i => (i + 1) % QUOTE_PLACEHOLDERS.length)
+    }, 6000)
+    return () => clearInterval(id)
+  }, [])
+
+  // Load calls
+  useEffect(() => {
+    fetch('/api/calls')
+      .then(r => r.json())
+      .then(data => { setCalls(Array.isArray(data) ? data : []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const s = stats(calls)
+  const tier = getTier(s.total)
+  const roast = getRoast(calls)
+  const tierIdx = TIERS.indexOf(tier)
+  const nextTier = TIERS[tierIdx + 1]
+  const progress = nextTier
+    ? Math.round(((s.total - tier.min) / (nextTier.min - tier.min)) * 100)
+    : 100
+
+  function showToast(msg: string) {
+    setToast(msg)
+    setTimeout(() => setToast(null), 2400)
+  }
+
+  async function addCall() {
+    if (submitting) return
+    setSubmitting(true)
+    const res = await fetch('/api/calls', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ asset: fAsset, date: fDate, price: fPrice || null, outcome: fOutcome, quote: fQuote || null }),
+    })
+    const newCall = await res.json()
+    if (res.ok) {
+      const updated = [newCall, ...calls]
+      setCalls(updated)
+      setFlash(true); setTimeout(() => setFlash(false), 300)
+      const newTier = getTier(updated.length)
+      if (TIERS.indexOf(newTier) > tierIdx) showToast(`Tier unlocked: ${newTier.label}`)
+      setFPrice(''); setFQuote(''); setFDate(today)
+    }
+    setSubmitting(false)
+  }
+
+  async function updateOutcome(id: string, outcome: Outcome) {
+    const res = await fetch(`/api/calls/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outcome }),
+    })
+    if (res.ok) {
+      const updated = await res.json()
+      setCalls(calls.map(c => c.id === id ? updated : c))
+    }
+  }
+
+  async function deleteCall(id: string) {
+    if (confirmDelete !== id) { setConfirmDelete(id); return }
+    await fetch(`/api/calls/${id}`, { method: 'DELETE' })
+    setCalls(calls.filter(c => c.id !== id))
+    setConfirmDelete(null)
+  }
+
+  function copyProfileLink() {
+    navigator.clipboard.writeText(profileUrl)
+    showToast('Profile link copied!')
+  }
+
+  function scrollToForm() {
+    document.getElementById('addSection')?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center text-[#9497a9] text-sm">
+      Loading your shame…
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 bg-white border border-[#dedee5] shadow-sm text-[#101114] text-sm font-semibold px-5 py-2 rounded-full pointer-events-none animate-[fadeDown_2.2s_cubic-bezier(.16,1,.3,1)_forwards] whitespace-nowrap">
+          {toast}
+        </div>
+      )}
+
+      {/* Header */}
+      <header className="border-b border-[#dedee5] bg-white sticky top-0 z-40 shadow-[rgba(16,24,40,0.04)_0px_1px_4px]">
+        <div className="max-w-[860px] mx-auto px-6 py-4 flex items-center justify-between">
+          <a href="/" className="flex items-center gap-2.5 no-underline">
+            <svg width="32" height="32" viewBox="0 0 38 38" fill="none" aria-hidden="true">
+              <circle cx="19" cy="19" r="18" stroke="#7132f5" strokeWidth="1.8"/>
+              <path d="M10 18 C6 18 3 12 6 8" stroke="#7132f5" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+              <path d="M28 18 C32 18 35 12 32 8" stroke="#7132f5" strokeWidth="2.2" strokeLinecap="round" fill="none"/>
+              <rect x="12" y="18" width="14" height="10" rx="5" fill="#101114" opacity="0.12" stroke="#101114" strokeWidth="1.4"/>
+              <circle cx="15.5" cy="23" r="1.8" fill="#ffffff" stroke="#101114" strokeWidth="1"/>
+              <circle cx="22.5" cy="23" r="1.8" fill="#ffffff" stroke="#101114" strokeWidth="1"/>
+              <circle cx="14.5" cy="16.5" r="1.6" fill="#101114"/>
+              <circle cx="23.5" cy="16.5" r="1.6" fill="#101114"/>
+              <path d="M12.5 14 L16.5 15.2" stroke="#7132f5" strokeWidth="1.4" strokeLinecap="round"/>
+              <path d="M25.5 14 L21.5 15.2" stroke="#7132f5" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+            <span className="text-base font-bold tracking-tight text-[#101114]">
+              Bull Market <span className="text-[#7132f5]">Relapse</span>
+            </span>
+          </a>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyProfileLink}
+              className="flex items-center gap-1.5 bg-white text-[#5741d8] border border-[#5741d8] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[rgba(133,91,251,0.16)] transition-colors"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+              Share
+            </button>
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="text-sm text-[#9497a9] hover:text-[#101114] px-3 py-2 rounded-xl hover:bg-[rgba(104,107,130,0.08)] transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <div className="max-w-[860px] mx-auto px-6">
+
+          {/* Hero */}
+          <section className="py-16 pb-12">
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#7132f5] bg-[rgba(133,91,251,0.16)] px-3 py-1 rounded-full mb-5">
+              {tier.label}
+            </div>
+
+            <div className={`font-bold text-[#7132f5] leading-[1.17] tracking-[-1px] mb-2 transition-colors duration-200 text-[clamp(5rem,16vw,9rem)] ${flash ? 'text-[#5b1ecf]' : ''}`}>
+              {s.total}
+            </div>
+
+            <div className="text-[22px] text-[#686b82] mb-6">times you&apos;ve called &ldquo;this is the bottom&rdquo;</div>
+
+            {s.total > 0 && (
+              <div className="text-sm text-[#9497a9] mb-8 leading-relaxed">
+                {s.days !== null && (
+                  <><span className={s.days === 0 ? 'text-[#dc2626] font-semibold' : ''}>{s.days} days since last call</span><span className="px-1.5 text-[#dedee5]">·</span></>
+                )}
+                <span className="text-[#991b1b] font-semibold">{s.rekt} rekt</span>
+                <span className="px-1.5 text-[#dedee5]">·</span>
+                <span className="text-[#026b3f] font-semibold">{s.right} right</span>
+                {s.acc !== null && (
+                  <><span className="px-1.5 text-[#dedee5]">·</span><span>{s.acc}% accuracy</span></>
+                )}
+              </div>
+            )}
+
+            {roast && s.total > 0 && (
+              <div className="bg-[#f5f5f7] border border-[#dedee5] rounded-2xl p-6 mb-8">
+                <div className="text-[22px] font-semibold text-[#101114] tracking-tight leading-[1.29] max-w-[54ch]">
+                  &ldquo;{roast}&rdquo;
+                </div>
+                <div className="mt-3 text-xs text-[#9497a9] font-medium">— Bull Market Relapse Counter</div>
+              </div>
+            )}
+
+            {/* Progress */}
+            <div className="mb-8">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">Shame Tier</span>
+                <span className="text-xs text-[#9497a9]">
+                  {nextTier ? `${nextTier.min - s.total} more to ${nextTier.label}` : 'Maximum shame achieved'}
+                </span>
+              </div>
+              <div className="h-1 bg-[#f5f5f7] rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[#7132f5] rounded-full transition-all duration-700"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </div>
+
+            {/* CTA row */}
+            <div className="flex gap-3 flex-wrap items-center mb-16">
+              <button
+                onClick={scrollToForm}
+                className="flex items-center gap-1.5 bg-[#7132f5] text-white font-semibold px-4 py-3 rounded-xl hover:bg-[#5741d8] transition-colors"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Log a Relapse
+              </button>
+              <button
+                onClick={copyProfileLink}
+                className="flex items-center gap-1.5 bg-white text-[#5741d8] border border-[#5741d8] font-semibold px-4 py-3 rounded-xl hover:bg-[rgba(133,91,251,0.16)] transition-colors"
+              >
+                Share My Shame
+              </button>
+            </div>
+          </section>
+
+          {/* Add Form */}
+          <section className="border-t border-[#dedee5] py-12" id="addSection">
+            <div className="mb-6">
+              <div className="text-[36px] font-bold tracking-tight text-[#101114] leading-[1.22] mb-1">Log a New Relapse</div>
+              <div className="text-sm text-[#9497a9]">Be honest. The market knows.</div>
+            </div>
+            <div className="bg-white border border-[#dedee5] rounded-2xl shadow-[rgba(0,0,0,0.03)_0px_4px_24px] p-6">
+              <div className="grid grid-cols-2 gap-4 mb-4 max-sm:grid-cols-1">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">Asset</label>
+                  <select value={fAsset} onChange={e => setFAsset(e.target.value)}
+                    className="bg-white border border-[#dedee5] rounded-[10px] px-3 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all shadow-[rgba(16,24,40,0.04)_0px_1px_4px]">
+                    {['BTC','ETH','SOL','ALT','MEME','OTHER'].map(a => <option key={a}>{a}</option>)}
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">Date of incident</label>
+                  <input type="date" value={fDate} onChange={e => setFDate(e.target.value)}
+                    className="bg-white border border-[#dedee5] rounded-[10px] px-3 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all shadow-[rgba(16,24,40,0.04)_0px_1px_4px]" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">Price at the time</label>
+                  <input type="text" value={fPrice} onChange={e => setFPrice(e.target.value)} placeholder="e.g. $74,200"
+                    className="bg-white border border-[#dedee5] rounded-[10px] px-3 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all shadow-[rgba(16,24,40,0.04)_0px_1px_4px]" />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">Outcome</label>
+                  <select value={fOutcome} onChange={e => setFOutcome(e.target.value as Outcome)}
+                    className="bg-white border border-[#dedee5] rounded-[10px] px-3 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all shadow-[rgba(16,24,40,0.04)_0px_1px_4px]">
+                    <option value="waiting">⏳ Still waiting</option>
+                    <option value="rekt">🩸 Rekt — went lower</option>
+                    <option value="right">✅ Actually right</option>
+                    <option value="early">⚡ Right, sold too early</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-1.5 col-span-2 max-sm:col-span-1">
+                  <label className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">What did you say exactly?</label>
+                  <textarea
+                    ref={quoteRef}
+                    value={fQuote}
+                    onChange={e => setFQuote(e.target.value)}
+                    placeholder={QUOTE_PLACEHOLDERS[phIdx]}
+                    rows={3}
+                    className="bg-white border border-[#dedee5] rounded-[10px] px-3 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all shadow-[rgba(16,24,40,0.04)_0px_1px_4px] resize-y min-h-[88px]"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2.5 justify-end mt-5">
+                <button
+                  onClick={() => { setFPrice(''); setFQuote(''); setFDate(today); setFAsset('BTC'); setFOutcome('waiting') }}
+                  className="bg-[rgba(148,151,169,0.08)] text-[#101114] text-sm font-medium px-3 py-2 rounded-[10px] hover:bg-[rgba(148,151,169,0.14)] transition-colors"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={addCall}
+                  disabled={submitting}
+                  className="flex items-center gap-1.5 bg-[#7132f5] text-white font-semibold px-4 py-3 rounded-xl hover:bg-[#5741d8] transition-colors disabled:opacity-60"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  {submitting ? 'Adding…' : 'Add Relapse'}
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* History */}
+          <section className="border-t border-[#dedee5] py-12">
+            <div className="flex justify-between items-start flex-wrap gap-4 mb-6">
+              <div>
+                <div className="text-[36px] font-bold tracking-tight text-[#101114] leading-[1.22] mb-1">Your Bottom Call History</div>
+                <div className="text-sm text-[#9497a9]">{calls.length > 0 ? `${calls.length} call${calls.length !== 1 ? 's' : ''} logged` : 'Nothing yet'}</div>
+              </div>
+            </div>
+
+            {calls.length === 0 ? (
+              <div className="py-16 border-t border-[#dedee5]">
+                <h3 className="text-[28px] font-bold text-[#101114] tracking-tight leading-[1.29] mb-2">Clean slate — for now</h3>
+                <p className="text-sm text-[#9497a9] max-w-[40ch] leading-relaxed">No bottom calls logged yet. We both know that&apos;s not true.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col">
+                {calls.map(call => {
+                  const badge = OUTCOME_BADGE[call.outcome]
+                  return (
+                    <div key={call.id} className="border-b border-[#dedee5] py-5 grid grid-cols-[1fr_auto] gap-4 items-start hover:bg-[#f5f5f7] hover:-mx-3 hover:px-3 rounded-[10px] transition-all max-sm:grid-cols-1">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          <span className="text-[11px] font-bold uppercase tracking-[.1em] text-[#7132f5] bg-[rgba(133,91,251,0.16)] px-2 py-0.5 rounded">
+                            {call.asset}
+                          </span>
+                          <span className="text-sm text-[#9497a9]">{call.date}</span>
+                          {call.price && <span className="text-sm text-[#686b82]">@ {call.price}</span>}
+                        </div>
+                        {call.quote && (
+                          <p className="text-[15px] text-[#101114] italic leading-relaxed">
+                            &ldquo;{call.quote}&rdquo;
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2 max-sm:flex-row max-sm:items-center">
+                        <select
+                          value={call.outcome}
+                          onChange={e => updateOutcome(call.id, e.target.value as Outcome)}
+                          className={`text-xs font-bold px-2.5 py-1 rounded border-0 cursor-pointer ${badge.cls}`}
+                        >
+                          <option value="waiting">⏳ Waiting</option>
+                          <option value="rekt">🩸 Rekt</option>
+                          <option value="right">✅ Right</option>
+                          <option value="early">⚡ Too Early</option>
+                        </select>
+                        <button
+                          onClick={() => deleteCall(call.id)}
+                          className={`text-sm px-2 py-1 rounded-md transition-colors ${confirmDelete === call.id ? 'text-[#dc2626] bg-[rgba(220,38,38,0.12)]' : 'text-[#9497a9] hover:text-[#dc2626] hover:bg-[rgba(220,38,38,0.12)]'}`}
+                        >
+                          {confirmDelete === call.id ? 'Sure?' : 'Delete'}
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+        </div>
+      </main>
+
+      <footer className="border-t border-[#dedee5] py-8 text-center text-sm text-[#9497a9]">
+        Built for the perpetually early. We&apos;re all going to make it — eventually.
+      </footer>
+    </div>
+  )
+}
