@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 import type { Call, Outcome } from '@/lib/types'
@@ -196,9 +196,109 @@ export function Counter({ session }: { session: Session }) {
     setConfirmDelete(null)
   }
 
-  function copyProfileLink() {
-    navigator.clipboard.writeText(profileUrl)
-    showToast('Profile link copied!')
+  const [shareOpen, setShareOpen] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  function rrect(cx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    cx.beginPath()
+    cx.moveTo(x+r,y); cx.lineTo(x+w-r,y)
+    cx.quadraticCurveTo(x+w,y,x+w,y+r); cx.lineTo(x+w,y+h-r)
+    cx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); cx.lineTo(x+r,y+h)
+    cx.quadraticCurveTo(x,y+h,x,y+h-r); cx.lineTo(x,y+r)
+    cx.quadraticCurveTo(x,y,x+r,y); cx.closePath()
+  }
+
+  const drawCard = useCallback(() => {
+    const cv = canvasRef.current
+    if (!cv) return
+    const cx = cv.getContext('2d')!
+    const W = 1000, H = 560
+    cv.width = W; cv.height = H
+
+    // bg
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, W, H)
+
+    // purple glow
+    const g = cx.createRadialGradient(W/2, H/2-30, 5, W/2, H/2-30, 280)
+    g.addColorStop(0, 'rgba(113,50,245,.07)'); g.addColorStop(1, 'rgba(113,50,245,0)')
+    cx.fillStyle = g; cx.fillRect(0, 0, W, H)
+
+    // border
+    rrect(cx, 1, 1, W-2, H-2, 16)
+    cx.strokeStyle = '#dedee5'; cx.lineWidth = 2; cx.stroke()
+
+    // tier badge
+    cx.font = '600 13px "IBM Plex Sans", sans-serif'
+    cx.textAlign = 'center'
+    const tw = cx.measureText(tier.label).width
+    const bx = W/2-tw/2-16, by = 52, bw = tw+32, bh = 28
+    rrect(cx, bx, by, bw, bh, 14)
+    cx.fillStyle = 'rgba(133,91,251,0.16)'; cx.fill()
+    cx.fillStyle = '#7132f5'
+    cx.fillText(tier.label, W/2, by+19)
+
+    // big number
+    const fontSize = s.total >= 100 ? 160 : 200
+    cx.font = `700 ${fontSize}px "IBM Plex Sans", sans-serif`
+    cx.fillStyle = '#7132f5'; cx.textAlign = 'center'
+    cx.fillText(s.total.toString(), W/2, H/2+55)
+
+    // sub label
+    cx.font = '400 21px "IBM Plex Sans", sans-serif'
+    cx.fillStyle = '#9497a9'
+    cx.fillText('times you\'ve called \u201cthis is the bottom\u201d', W/2, H/2+98)
+
+    // stat cards
+    const items = [
+      { l: 'Days Since Last', v: s.days !== null ? s.days : '—' },
+      { l: 'Times Rekt',      v: s.rekt },
+      { l: 'Times Right',     v: s.right },
+      { l: 'Accuracy',        v: s.acc !== null ? s.acc+'%' : '—' },
+    ]
+    const sw = 175, sh = 68, sg = 18
+    const tw2 = items.length*sw+(items.length-1)*sg
+    let sx = W/2-tw2/2
+    items.forEach(it => {
+      rrect(cx, sx, H-128, sw, sh, 10)
+      cx.fillStyle = 'rgba(104,107,130,0.08)'; cx.fill()
+      cx.strokeStyle = '#dedee5'; cx.lineWidth = 1; cx.stroke()
+      cx.font = '700 30px "IBM Plex Sans", sans-serif'
+      cx.fillStyle = '#101114'; cx.textAlign = 'center'
+      cx.fillText(String(it.v), sx+sw/2, H-128+sh*.55)
+      cx.font = '500 11px "IBM Plex Sans", sans-serif'
+      cx.fillStyle = '#9497a9'
+      cx.fillText(it.l.toUpperCase(), sx+sw/2, H-128+sh*.85)
+      sx += sw+sg
+    })
+
+    // watermark
+    cx.font = '600 12px "IBM Plex Sans", sans-serif'
+    cx.fillStyle = '#dedee5'; cx.textAlign = 'right'
+    cx.fillText('bullmarketrelapse.lol', W-22, H-18)
+  }, [s, tier])
+
+  function openShare() { setShareOpen(true); setTimeout(drawCard, 50) }
+  function closeShare() { setShareOpen(false) }
+
+  function dlCard() {
+    const cv = canvasRef.current
+    if (!cv) return
+    const a = document.createElement('a')
+    a.download = 'bull-market-relapse.png'
+    a.href = cv.toDataURL('image/png'); a.click()
+  }
+
+  function getTweetText() {
+    const accLine = s.acc !== null ? ` Accuracy: ${s.acc}%.` : ''
+    return `I've called the bottom ${s.total} time${s.total !== 1 ? 's' : ''}.\n${tier.label}${accLine}\n\n"${roast}"\n\nbullmarketrelapse.lol`
+  }
+
+  function postOnX() {
+    window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(getTweetText()), '_blank', 'noopener')
+  }
+
+  function copyTweet() {
+    navigator.clipboard.writeText(getTweetText()).then(() => showToast('Copied!')).catch(() => {})
   }
 
   function scrollToForm() {
@@ -242,7 +342,7 @@ export function Counter({ session }: { session: Session }) {
           </a>
           <div className="flex items-center gap-2">
             <button
-              onClick={copyProfileLink}
+              onClick={openShare}
               className="flex items-center gap-1.5 bg-white text-[#5741d8] border border-[#5741d8] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[rgba(133,91,251,0.16)] transition-colors"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
@@ -322,7 +422,7 @@ export function Counter({ session }: { session: Session }) {
                 Log a Relapse
               </button>
               <button
-                onClick={copyProfileLink}
+                onClick={openShare}
                 className="flex items-center gap-1.5 bg-white text-[#5741d8] border border-[#5741d8] font-semibold px-4 py-3 rounded-xl hover:bg-[rgba(133,91,251,0.16)] transition-colors"
               >
                 Share My Shame
@@ -461,6 +561,45 @@ export function Counter({ session }: { session: Session }) {
       <footer className="border-t border-[#dedee5] py-8 text-center text-sm text-[#9497a9]">
         Built for the perpetually early. We&apos;re all going to make it — eventually.
       </footer>
+
+      {/* Share Modal */}
+      {shareOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+          onClick={e => { if (e.target === e.currentTarget) closeShare() }}
+        >
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-[600px] p-6">
+            <div className="flex justify-between items-center mb-5">
+              <div className="text-[22px] font-bold tracking-tight text-[#101114]">Go On. Post It.</div>
+              <button onClick={closeShare} className="text-[#9497a9] hover:text-[#101114] hover:bg-[#f5f5f7] w-8 h-8 rounded-lg flex items-center justify-center transition-colors text-lg">✕</button>
+            </div>
+            <canvas ref={canvasRef} className="w-full h-auto rounded-xl border border-[#dedee5] mb-5" />
+            <div className="flex gap-2.5 justify-end flex-wrap">
+              <button
+                onClick={dlCard}
+                className="flex items-center gap-1.5 bg-[rgba(104,107,130,0.08)] text-[#101114] text-sm font-medium px-3 py-2 rounded-[10px] hover:bg-[rgba(104,107,130,0.14)] transition-colors"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Save image
+              </button>
+              <button
+                onClick={copyTweet}
+                className="flex items-center gap-1.5 bg-[rgba(104,107,130,0.08)] text-[#101114] text-sm font-medium px-3 py-2 rounded-[10px] hover:bg-[rgba(104,107,130,0.14)] transition-colors"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy post
+              </button>
+              <button
+                onClick={postOnX}
+                className="flex items-center gap-1.5 bg-[#101114] text-white text-sm font-semibold px-4 py-2 rounded-[10px] hover:bg-[#2a2d3a] transition-colors"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.744l7.737-8.857L1.254 2.25H8.08l4.253 5.622L18.244 2.25zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77z"/></svg>
+                Post on X
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
