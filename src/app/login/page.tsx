@@ -120,8 +120,12 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right panel ── */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white">
-        <div className="w-full max-w-[340px] animate-fade-up">
+      <div className="flex-1 flex items-center justify-center px-6 py-12 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[-80px] right-[-80px] w-[320px] h-[320px] rounded-full bg-[#7132f5] opacity-[0.06] blur-[90px] animate-[pulse_6s_ease-in-out_infinite]" />
+          <div className="absolute bottom-[-60px] left-[-60px] w-[260px] h-[260px] rounded-full bg-[#7132f5] opacity-[0.04] blur-[80px] animate-[pulse_8s_ease-in-out_infinite_1s]" />
+        </div>
+        <div className="w-full max-w-[340px] animate-fade-up relative z-10">
 
           {/* Mobile logo */}
           <div className="flex items-center gap-2 mb-8 lg:hidden">
