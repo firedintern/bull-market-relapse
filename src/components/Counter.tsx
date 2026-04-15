@@ -115,8 +115,12 @@ export function Counter({ session }: { session: Session }) {
   useEffect(() => {
     fetch('/api/calls')
       .then(r => r.json())
-      .then(data => { setCalls(Array.isArray(data) ? data : []); setLoading(false) })
-      .catch(() => setLoading(false))
+      .then(data => {
+        console.log('[calls] GET response:', data)
+        setCalls(Array.isArray(data) ? data : [])
+        setLoading(false)
+      })
+      .catch(err => { console.error('[calls] GET error:', err); setLoading(false) })
   }, [])
 
   const s = stats(calls)
@@ -136,19 +140,27 @@ export function Counter({ session }: { session: Session }) {
   async function addCall() {
     if (submitting) return
     setSubmitting(true)
-    const res = await fetch('/api/calls', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ asset: fAsset, date: fDate, price: fPrice || null, outcome: fOutcome, quote: fQuote || null }),
-    })
-    const newCall = await res.json()
-    if (res.ok) {
-      const updated = [newCall, ...calls]
-      setCalls(updated)
-      setFlash(true); setTimeout(() => setFlash(false), 300)
-      const newTier = getTier(updated.length)
-      if (TIERS.indexOf(newTier) > tierIdx) showToast(`Tier unlocked: ${newTier.label}`)
-      setFPrice(''); setFQuote(''); setFDate(today)
+    try {
+      const res = await fetch('/api/calls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ asset: fAsset, date: fDate, price: fPrice || null, outcome: fOutcome, quote: fQuote || null }),
+      })
+      const newCall = await res.json()
+      console.log('[calls] POST response:', res.status, newCall)
+      if (res.ok) {
+        const updated = [newCall, ...calls]
+        setCalls(updated)
+        setFlash(true); setTimeout(() => setFlash(false), 300)
+        const newTier = getTier(updated.length)
+        if (TIERS.indexOf(newTier) > tierIdx) showToast(`Tier unlocked: ${newTier.label}`)
+        setFPrice(''); setFQuote(''); setFDate(today)
+      } else {
+        showToast(newCall?.error ?? `Error ${res.status}`)
+      }
+    } catch (err) {
+      console.error('[calls] POST error:', err)
+      showToast('Network error — try again')
     }
     setSubmitting(false)
   }
