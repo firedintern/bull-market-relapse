@@ -100,6 +100,18 @@ export function Counter({ session }: { session: Session }) {
   const [fOutcome, setFOutcome] = useState<Outcome>('waiting')
   const [fQuote, setFQuote] = useState('')
 
+  // Live price
+  const PRICE_IDS: Record<string, string> = { BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana' }
+  useEffect(() => {
+    const id = PRICE_IDS[fAsset]
+    if (!id) { setFPrice(''); return }
+    fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`)
+      .then(r => r.json())
+      .then(d => { if (d[id]?.usd) setFPrice(`$${d[id].usd.toLocaleString()}`) })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fAsset])
+
   // Rotating placeholder
   const [phIdx, setPhIdx] = useState(0)
   const quoteRef = useRef<HTMLTextAreaElement>(null)
