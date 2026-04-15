@@ -1,7 +1,7 @@
 import type { NextAuthOptions } from 'next-auth'
 import Twitter from 'next-auth/providers/twitter'
 import Credentials from 'next-auth/providers/credentials'
-import { supabase } from '@/lib/supabase'
+import { supabaseAdmin as supabase } from '@/lib/supabase'
 
 export const authOptions: NextAuthOptions = {
   providers: [
