@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
+import confetti from 'canvas-confetti'
 import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 import type { Call, Outcome } from '@/lib/types'
@@ -56,6 +57,21 @@ const QUOTE_PLACEHOLDERS = [
   '"the fundamentals have never been stronger"',
 ]
 
+const EASTER_PRICES: Record<string, string> = {
+  '69420': '69,420. of course.',
+  '69,420': '69,420. of course.',
+  '$69420': '69,420. of course.',
+  '$69,420': '69,420. of course.',
+  '420': 'nice.',
+  '$420': 'nice.',
+  '100000': 'you called it at 100k. bold.',
+  '$100000': 'you called it at 100k. bold.',
+  '$100,000': 'you called it at 100k. bold.',
+  '100,000': 'you called it at 100k. bold.',
+}
+
+const KONAMI = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a']
+
 function getTier(n: number) {
   return TIERS.find(t => n >= t.min && n <= t.max) ?? TIERS[TIERS.length - 1]
 }
@@ -91,6 +107,8 @@ export function Counter({ session }: { session: Session }) {
   const [toast, setToast] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [konamiToast, setKonamiToast] = useState<string | null>(null)
+  const [easterMsg, setEasterMsg] = useState<string | null>(null)
 
   // Form state
   const today = new Date().toISOString().split('T')[0]
@@ -99,6 +117,38 @@ export function Counter({ session }: { session: Session }) {
   const [fPrice, setFPrice] = useState('')
   const [fOutcome, setFOutcome] = useState<Outcome>('waiting')
   const [fQuote, setFQuote] = useState('')
+
+  // Console easter egg
+  useEffect(() => {
+    console.log('%c Bull Market Relapse Counter ', 'background:#7132f5;color:#fff;font-size:14px;font-weight:bold;padding:4px 8px;border-radius:3px')
+    console.log('%cYou found the console. Respect.', 'color:#686b82;font-size:12px')
+    console.log('%cIf you\'re reading this, you\'ve called the bottom at least once. We both know it.', 'color:#101114;font-size:11px')
+  }, [])
+
+  // Konami code
+  useEffect(() => {
+    let idx = 0
+    function onKey(e: KeyboardEvent) {
+      if (e.key === KONAMI[idx]) {
+        idx++
+        if (idx === KONAMI.length) {
+          idx = 0
+          const msg = calls.length === 0
+            ? "cheat code activated. you still haven't called the bottom."
+            : `cheat code activated. still doesn't make ${calls.length} calls go away.`
+          setKonamiToast(msg)
+          setTimeout(() => setKonamiToast(null), 3000)
+          if (!window.matchMedia('(prefers-reduced-motion:reduce)').matches) {
+            confetti({ particleCount: 15, spread: 60, origin: { x: .5, y: .4 }, colors: ['#7132f5', '#dedee5', '#101114'], scalar: .7 })
+          }
+        }
+      } else {
+        idx = e.key === KONAMI[0] ? 1 : 0
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [calls.length])
 
   // Live price
   const PRICE_IDS: Record<string, string> = { BTC: 'bitcoin', ETH: 'ethereum', SOL: 'solana' }
@@ -144,6 +194,14 @@ export function Counter({ session }: { session: Session }) {
     ? Math.round(((s.total - tier.min) / (nextTier.min - tier.min)) * 100)
     : 100
 
+  function fireConfetti() {
+    if (window.matchMedia('(prefers-reduced-motion:reduce)').matches) return
+    confetti({ particleCount: 30, angle: 60, spread: 55, origin: { x: 0, y: .65 }, colors: ['#dc2626', '#e5dfdf', '#3e3b3b'] })
+    setTimeout(() => {
+      confetti({ particleCount: 30, angle: 120, spread: 55, origin: { x: 1, y: .65 }, colors: ['#dc2626', '#e5dfdf', '#3e3b3b'] })
+    }, 150)
+  }
+
   function showToast(msg: string) {
     setToast(msg)
     setTimeout(() => setToast(null), 2400)
@@ -166,7 +224,8 @@ export function Counter({ session }: { session: Session }) {
         setFlash(true); setTimeout(() => setFlash(false), 300)
         const newTier = getTier(updated.length)
         if (TIERS.indexOf(newTier) > tierIdx) showToast(`Tier unlocked: ${newTier.label}`)
-        setFPrice(''); setFQuote(''); setFDate(today)
+        if (fOutcome === 'right' || fOutcome === 'early') fireConfetti()
+        setFPrice(''); setFQuote(''); setFDate(today); setEasterMsg(null)
       } else {
         showToast(newCall?.error ?? `Error ${res.status}`)
       }
@@ -186,6 +245,7 @@ export function Counter({ session }: { session: Session }) {
     if (res.ok) {
       const updated = await res.json()
       setCalls(calls.map(c => c.id === id ? updated : c))
+      if (outcome === 'right' || outcome === 'early') fireConfetti()
     }
   }
 
@@ -320,6 +380,15 @@ export function Counter({ session }: { session: Session }) {
         </div>
       )}
 
+      {/* Konami toast */}
+      {konamiToast && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 bg-[#101114] text-white text-sm font-medium px-5 py-3 rounded-xl pointer-events-none shadow-lg whitespace-nowrap">
+          {konamiToast.split('. ').map((part, i) => (
+            i === 1 ? <span key={i} className="text-[#7132f5]"> {part}</span> : <span key={i}>{part}</span>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <header className="border-b border-[#dedee5] bg-white sticky top-0 z-40 shadow-[rgba(16,24,40,0.04)_0px_1px_4px]">
         <div className="max-w-[860px] mx-auto px-6 py-4 flex items-center justify-between">
@@ -341,6 +410,12 @@ export function Counter({ session }: { session: Session }) {
             </span>
           </a>
           <div className="flex items-center gap-2">
+            <a
+              href="/leaderboard"
+              className="text-sm text-[#9497a9] hover:text-[#101114] px-3 py-2 rounded-xl hover:bg-[rgba(104,107,130,0.08)] transition-colors hidden sm:block"
+            >
+              Leaderboard
+            </a>
             <button
               onClick={openShare}
               className="flex items-center gap-1.5 bg-white text-[#5741d8] border border-[#5741d8] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[rgba(133,91,251,0.16)] transition-colors"
@@ -452,8 +527,15 @@ export function Counter({ session }: { session: Session }) {
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">Price at the time</label>
-                  <input type="text" value={fPrice} onChange={e => setFPrice(e.target.value)} placeholder="e.g. $74,200"
+                  <input type="text" value={fPrice} onChange={e => {
+                    const val = e.target.value
+                    setFPrice(val)
+                    const key = val.trim().replace(/\s/g, '')
+                    const match = Object.entries(EASTER_PRICES).find(([k]) => k.toLowerCase() === key.toLowerCase())
+                    setEasterMsg(match ? match[1] : null)
+                  }} placeholder="e.g. $74,200"
                     className="bg-white border border-[#dedee5] rounded-[10px] px-3 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all shadow-[rgba(16,24,40,0.04)_0px_1px_4px]" />
+                  {easterMsg && <p className="text-xs text-[#7132f5] font-medium mt-0.5">{easterMsg}</p>}
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-bold uppercase tracking-[.06em] text-[#686b82]">Outcome</label>
