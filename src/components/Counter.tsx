@@ -412,13 +412,14 @@ export function Counter({ session }: { session: Session }) {
           <div className="flex items-center gap-2">
             <a
               href="/leaderboard"
-              className="text-sm text-[#9497a9] hover:text-[#101114] px-3 py-2 rounded-xl hover:bg-[rgba(104,107,130,0.08)] transition-colors hidden sm:block"
+              className="flex items-center gap-1.5 text-sm font-medium text-[#7132f5] bg-[rgba(113,50,245,0.08)] px-3 py-2 rounded-xl hover:bg-[rgba(113,50,245,0.16)] transition-colors hidden sm:block"
             >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
               Leaderboard
             </a>
             <button
               onClick={openShare}
-              className="flex items-center gap-1.5 bg-white text-[#5741d8] border border-[#5741d8] text-sm font-medium px-3 py-2 rounded-xl hover:bg-[rgba(133,91,251,0.16)] transition-colors"
+              className="flex items-center gap-1.5 bg-[#7132f5] text-white text-sm font-semibold px-3 py-2 rounded-xl hover:bg-[#5741d8] transition-colors"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
               Share
