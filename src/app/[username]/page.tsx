@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { notFound } from 'next/navigation'
 import type { Call } from '@/lib/types'
+import { ChallengeButton } from '@/components/ChallengeButton'
 
 const TIERS = [
   { min: 0,  max: 0,  label: '🌱 First Timer' },
@@ -108,12 +109,13 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
 
           {/* Challenge CTA */}
           <div className="flex gap-3">
-            <button
-              onClick={undefined}
-              className="inline-flex items-center gap-2 border border-[#5741d8] text-[#5741d8] text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[rgba(133,91,251,0.16)] transition-colors"
-            >
-              Challenge a friend
-            </button>
+            <ChallengeButton
+              username={profile.username}
+              total={total}
+              rekt={rekt}
+              acc={acc}
+              profileUrl={`https://bullmarketrelapse.lol/${profile.username}`}
+            />
           </div>
         </div>
 
