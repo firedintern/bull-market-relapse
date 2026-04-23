@@ -24,10 +24,11 @@ export async function POST(req: NextRequest) {
 
   const userId = (session.user as { id?: string }).id
   const body = await req.json()
+  const { asset, date, price, outcome, quote } = body
 
   const { data, error } = await supabase
     .from('calls')
-    .insert({ ...body, user_id: userId })
+    .insert({ asset, date, price, outcome, quote, user_id: userId })
     .select()
     .single()
 

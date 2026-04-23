@@ -114,7 +114,7 @@ export default async function ProfilePage({ params }: { params: Promise<{ userna
               total={total}
               rekt={rekt}
               acc={acc}
-              profileUrl={`https://bullmarketrelapse.lol/${profile.username}`}
+              profileUrl={`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://bullmarketrelapse.lol'}/${profile.username}`}
             />
           </div>
         </div>

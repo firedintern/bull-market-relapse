@@ -12,29 +12,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Username must be 2–30 characters.' }, { status: 400 })
   }
 
-  // Check username taken
-  const { data: existing } = await supabase
-    .from('profiles')
-    .select('id')
-    .eq('username', username)
-    .single()
-
-  if (existing) {
-    return NextResponse.json({ error: 'Username already taken.' }, { status: 409 })
-  }
-
   const { data, error } = await supabase.auth.signUp({ email, password })
   if (error || !data.user) {
     return NextResponse.json({ error: error?.message ?? 'Signup failed.' }, { status: 400 })
   }
 
-  // Create profile
-  await supabase.from('profiles').insert({
+  const { error: profileError } = await supabase.from('profiles').insert({
     id: data.user.id,
     username,
     email,
     is_public: true,
   })
+
+  if (profileError) {
+    // Username unique constraint violation
+    if (profileError.code === '23505') {
+      await supabase.auth.admin.deleteUser(data.user.id)
+      return NextResponse.json({ error: 'Username already taken.' }, { status: 409 })
+    }
+    await supabase.auth.admin.deleteUser(data.user.id)
+    return NextResponse.json({ error: 'Failed to create profile.' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true }, { status: 201 })
 }

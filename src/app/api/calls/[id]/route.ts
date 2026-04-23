@@ -10,10 +10,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const userId = (session.user as { id?: string }).id
   const { id } = await params
   const body = await req.json()
+  const { outcome } = body
 
   const { data, error } = await supabase
     .from('calls')
-    .update(body)
+    .update({ outcome })
     .eq('id', id)
     .eq('user_id', userId)
     .select()
