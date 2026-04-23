@@ -2,7 +2,6 @@
 
 import { signIn } from 'next-auth/react'
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 
 const ROASTS = [
   "You've called the bottom before.\nWe both know it.",
@@ -19,11 +18,6 @@ const TIERS = [
 ]
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
   const [roastIdx, setRoastIdx] = useState(0)
   const [roastVisible, setRoastVisible] = useState(true)
 
@@ -38,22 +32,11 @@ export default function LoginPage() {
     return () => clearInterval(id)
   }, [])
 
-  async function handleCredentials(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    const res = await signIn('credentials', { email, password, redirect: false })
-    setLoading(false)
-    if (res?.error) setError('Invalid email or password.')
-    else router.push('/')
-  }
-
   return (
     <div className="min-h-screen bg-white flex">
 
       {/* ── Left panel ── */}
       <div className="hidden lg:flex flex-col justify-between w-[460px] shrink-0 bg-[#7132f5] p-10 overflow-hidden relative">
-        {/* Subtle radial glow bg */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] rounded-full bg-white opacity-[0.06] blur-[80px]" />
         </div>
@@ -85,7 +68,6 @@ export default function LoginPage() {
               <span key={i}>{line}{i === 0 && <br/>}</span>
             ))}
           </p>
-          {/* Roast dots */}
           <div className="flex gap-1.5 mt-6">
             {ROASTS.map((_, i) => (
               <div
@@ -106,7 +88,6 @@ export default function LoginPage() {
           {TIERS.map(t => (
             <div key={t.label} className="flex items-center justify-between bg-white/10 rounded-xl px-3.5 py-2.5 backdrop-blur-sm border border-white/5">
               <div className="flex items-center gap-2.5">
-                {/* SVG with glow */}
                 <div className="relative w-5 h-5">
                   <div className="absolute inset-0 rounded-full bg-white opacity-20 blur-[6px]" />
                   <img src={t.icon} alt={t.label} className="relative w-5 h-5 invert opacity-90" />
@@ -142,15 +123,14 @@ export default function LoginPage() {
             <span className="font-bold text-[#101114] text-sm tracking-tight">Bull Market <span className="text-[#7132f5]">Relapse</span></span>
           </div>
 
-          <div className="mb-7">
+          <div className="mb-8">
             <h1 className="text-2xl font-bold text-[#101114] tracking-tight mb-1">Welcome back</h1>
             <p className="text-sm text-[#9497a9]">Log in to face your bottom calls.</p>
           </div>
 
-          {/* X Login */}
           <button
             onClick={() => signIn('twitter', { callbackUrl: '/' })}
-            className="w-full flex items-center justify-center gap-2 bg-[#101114] text-white text-sm font-semibold py-2.5 rounded-xl mb-3.5 hover:bg-[#1d2129] transition-colors"
+            className="w-full flex items-center justify-center gap-2 bg-[#101114] text-white text-sm font-semibold py-3 rounded-xl hover:bg-[#1d2129] transition-colors"
           >
             Continue with
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
@@ -158,42 +138,8 @@ export default function LoginPage() {
             </svg>
           </button>
 
-          <div className="flex items-center gap-3 mb-3.5">
-            <div className="flex-1 h-px bg-[#dedee5]" />
-            <span className="text-xs text-[#9497a9]">or</span>
-            <div className="flex-1 h-px bg-[#dedee5]" />
-          </div>
-
-          <form onSubmit={handleCredentials} className="flex flex-col gap-2.5">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              required
-              className="border border-[#dedee5] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all"
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              required
-              className="border border-[#dedee5] rounded-xl px-3.5 py-2.5 text-sm outline-none focus:border-[#7132f5] focus:ring-2 focus:ring-[#7132f5]/10 transition-all"
-            />
-            {error && <p className="text-xs text-red-500">{error}</p>}
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-[#7132f5] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#5741d8] transition-colors disabled:opacity-60 mt-1"
-            >
-              {loading ? 'Signing in…' : 'Sign in'}
-            </button>
-          </form>
-
-          <p className="text-center text-xs text-[#9497a9] mt-5">
-            No account?{' '}
-            <a href="/signup" className="text-[#7132f5] hover:underline font-medium">Sign up free</a>
+          <p className="text-center text-xs text-[#9497a9] mt-6">
+            By continuing, you agree to have your bottom calls permanently documented.
           </p>
         </div>
       </div>
